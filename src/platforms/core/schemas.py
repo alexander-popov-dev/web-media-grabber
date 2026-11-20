@@ -1,22 +1,20 @@
 from pydantic import BaseModel
 
-class YoutubeVideo(BaseModel):
+class Video(BaseModel):
     url: str
     format: str
     resolution: str
-    # height: int
-    # width: int
     size: str
 
-class YoutubeAudio(BaseModel):
+class Audio(BaseModel):
     url: str
     format: str
     bitrate: str
     size: str
 
-class YoutubePost(BaseModel):
+class Post(BaseModel):
     url: str
     title: str
     author: str
-    videos: list[YoutubeVideo]
-    audios: list[YoutubeAudio]
+    videos: list[Video]
+    audios: list[Audio]
