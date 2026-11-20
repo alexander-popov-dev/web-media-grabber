@@ -1,5 +1,5 @@
 from src.platforms.youtube.parser import YoutubeParser
-from platforms.core.schemas import Post
+from src.platforms.core.schemas import Post
 from src.platforms.youtube.scraper import YoutubeScraper
 
 
