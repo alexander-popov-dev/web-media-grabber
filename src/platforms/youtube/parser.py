@@ -1,6 +1,6 @@
 from urllib.parse import urlencode
 
-from platforms.core.schemas import Audio, Post, Video
+from src.platforms.core.schemas import Audio, Post, Video
 
 
 class YoutubeParser:
