@@ -1,6 +1,6 @@
 from urllib.parse import urlencode
 
-from src.platforms.youtube.schemas import YoutubeAudio, YoutubePost, YoutubeVideo
+from platforms.core.schemas import Audio, Post, Video
 
 
 class YoutubeParser:
@@ -22,7 +22,7 @@ class YoutubeParser:
         mb = size / 1_000_000
         return f"{mb / 1000:.1f} GB" if mb >= 1000 else f"{mb:.0f} MB"
 
-    def parse(self, response: dict) -> YoutubePost:
+    def parse(self, response: dict) -> Post:
         url = response["webpage_url"]
         formats = [
             f for f in response.get("formats", [])
@@ -36,7 +36,7 @@ class YoutubeParser:
         audio_streams.sort(key=lambda f: f.get("abr") or f.get("tbr") or 0, reverse=True)
         best_audio_size = self._size(audio_streams[0]) if audio_streams else 0
 
-        return YoutubePost(
+        return Post(
             url=url,
             title=response["title"],
             author=response.get("uploader") or response.get("channel") or "",
@@ -44,7 +44,7 @@ class YoutubeParser:
             audios=self._build_audios(audio_streams, url),
         )
 
-    def _build_videos(self, formats: list[dict], url: str, audio_size: float) -> list[YoutubeVideo]:
+    def _build_videos(self, formats: list[dict], url: str, audio_size: float) -> list[Video]:
         by_height: dict[int, dict] = {}
         for f in formats:
             h = f.get("height")
@@ -57,7 +57,7 @@ class YoutubeParser:
         for h, f in sorted(by_height.items(), reverse=True):
             has_audio = self._has(f.get("acodec"))
             total = self._size(f) + (0 if has_audio else audio_size)
-            videos.append(YoutubeVideo(
+            videos.append(Video(
                 url=f"{self._base_url}/youtube/download/video?" + urlencode({"url": url, "height": h}),
                 format="MP4" if h <= 1080 else "MKV",
                 resolution=f"{h}p",
@@ -65,7 +65,7 @@ class YoutubeParser:
             ))
         return videos
 
-    def _build_audios(self, audio_streams: list[dict], url: str) -> list[YoutubeAudio]:
+    def _build_audios(self, audio_streams: list[dict], url: str) -> list[Audio]:
         by_bitrate: dict[int, dict] = {}
         for f in audio_streams:
             abr = round(f.get("abr") or f.get("tbr") or 0)
@@ -74,7 +74,7 @@ class YoutubeParser:
 
         audios = []
         for abr, f in sorted(by_bitrate.items(), reverse=True):
-            audios.append(YoutubeAudio(
+            audios.append(Audio(
                 url=f"{self._base_url}/youtube/download/audio?" + urlencode({"url": url, "format_id": f["format_id"]}),
                 format=(f.get("ext") or "").upper(),
                 bitrate=f"{abr} kbps",
