@@ -1,4 +1,4 @@
-class BaseDownloadError(BaseException):
+class BaseDownloadError(Exception):
     pass
 
 class PlatformNotSupported(BaseDownloadError):
