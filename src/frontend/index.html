@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="meta-title">MediaGrabber - Fast Free Video Downloader for YouTube, Instagram, TikTok & Facebook</title>
+    <meta id="meta-desc" name="description" content="Download HD videos and MP3 audio from YouTube, Instagram Reels, TikTok without watermark, and Facebook for free in seconds. No software required.">
+    <meta name="keywords" content="video downloader, youtube mp4, tiktok watermark remover, instagram reel saver, facebook video download">
+    <link rel="canonical" href="https://mediagrabber.app/" id="meta-canonical">
+    
+    <!-- Open Graph / Social SEO -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://mediagrabber.app/">
+    <meta id="og-title" property="og:title" content="MediaGrabber - Universal HD Video Downloader">
+    <meta id="og-desc" property="og:description" content="Download videos from YouTube, Instagram, TikTok and Facebook quickly & free in 1080p, 4K or MP3 format.">
+    <meta property="og:image" content="https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=1200&h=630&fit=crop">
+
+    <!-- Alternate Languages for SEO -->
+    <link rel="alternate" hreflang="en" href="https://mediagrabber.app/?lang=en" />
+    <link rel="alternate" hreflang="ru" href="https://mediagrabber.app/?lang=ru" />
+    <link rel="alternate" hreflang="uk" href="https://mediagrabber.app/?lang=ua" />
+    <link rel="alternate" hreflang="x-default" href="https://mediagrabber.app/" />
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        },
+                        youtube: '#FF0000',
+                        instagram: '#E1306C',
+                        tiktok: '#00F2FE',
+                        facebook: '#1877F2'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Dynamic Schema.org JSON-LD Markup Injection Block -->
+    <script type="application/ld+json" id="schema-webapp">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "MediaGrabber Video Downloader",
+      "url": "https://mediagrabber.app/",
+      "applicationCategory": "MultimediaApplication",
+      "operatingSystem": "All",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "description": "Free online video downloader for YouTube, TikTok, Instagram, and Facebook."
+    }
+    </script>
+    <script type="application/ld+json" id="schema-faq">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": []
+    }
+    </script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .glow-effect {
+            box-shadow: 0 0 40px -10px rgba(99, 102, 241, 0.3);
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #a5b4fc 0%, #6366f1 50%, #d8b4fe 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .light .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+        }
+        /* Custom scrollbars */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col transition-colors duration-300">
+
+    <!-- Header Navigation -->
+    <header class="sticky top-0 z-50 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                
+                <!-- Logo -->
+                <div class="flex items-center space-x-3 cursor-pointer" onclick="switchPlatform('all')">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                        <i class="fa-solid font-black fa-circle-down text-xl text-white"></i>
+                    </div>
+                    <span class="text-xl font-extrabold tracking-tight text-white">Media<span class="text-indigo-400">Grabber</span></span>
+                </div>
+
+                <!-- Desktop Platform Selector Menu -->
+                <nav class="hidden md:flex space-x-1 bg-slate-900/90 p-1.5 rounded-full border border-slate-800">
+                    <button onclick="switchPlatform('all')" id="nav-all" class="nav-btn active px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 text-white bg-indigo-600 shadow-md">
+                        <i class="fa-solid fa-globe mr-1.5"></i> <span data-i18n="nav_all">All-in-One</span>
+                    </button>
+                    <button onclick="switchPlatform('youtube')" id="nav-youtube" class="nav-btn px-4 py-1.5 rounded-full text-sm font-medium text-slate-400 hover:text-white transition-all duration-200">
+                        <i class="fa-brands fa-youtube mr-1.5 text-red-500"></i> YouTube
+                    </button>
+                    <button onclick="switchPlatform('instagram')" id="nav-instagram" class="nav-btn px-4 py-1.5 rounded-full text-sm font-medium text-slate-400 hover:text-white transition-all duration-200">
+                        <i class="fa-brands fa-instagram mr-1.5 text-pink-500"></i> Instagram
+                    </button>
+                    <button onclick="switchPlatform('tiktok')" id="nav-tiktok" class="nav-btn px-4 py-1.5 rounded-full text-sm font-medium text-slate-400 hover:text-white transition-all duration-200">
+                        <i class="fa-brands fa-tiktok mr-1.5 text-cyan-400"></i> TikTok
+                    </button>
+                    <button onclick="switchPlatform('facebook')" id="nav-facebook" class="nav-btn px-4 py-1.5 rounded-full text-sm font-medium text-slate-400 hover:text-white transition-all duration-200">
+                        <i class="fa-brands fa-facebook mr-1.5 text-blue-500"></i> Facebook
+                    </button>
+                </nav>
+
+                <!-- Controls (Language Switcher & Theme) -->
+                <div class="flex items-center space-x-3">
+                    
+                    <!-- Language Dropdown -->
+                    <div class="relative">
+                        <select id="lang-select" onchange="changeLanguage(this.value)" class="bg-slate-900 text-slate-200 text-sm font-medium rounded-lg border border-slate-700 px-3 py-1.5 pr-8 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer appearance-none">
+                            <option value="en">🇬🇧 EN</option>
+                            <option value="ru">🇷🇺 RU</option>
+                            <option value="ua">🇺🇦 UA</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                            <i class="fa-solid fa-chevron-down text-xs"></i>
+                        </div>
+                    </div>
+
+                    <!-- Mobile Menu Trigger Button -->
+                    <button onclick="toggleMobileMenu()" class="md:hidden text-slate-400 hover:text-white p-2 rounded-lg bg-slate-900 border border-slate-800">
+                        <i class="fa-solid fa-bars text-lg"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Platform Navigation Menu -->
+        <div id="mobile-menu" class="hidden md:hidden border-t border-slate-800 bg-slate-950 px-4 pt-2 pb-4 space-y-2">
+            <button onclick="switchPlatform('all'); toggleMobileMenu()" class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white">
+                <i class="fa-solid fa-globe mr-2"></i> <span data-i18n="nav_all">All-in-One Downloader</span>
+            </button>
+            <button onclick="switchPlatform('youtube'); toggleMobileMenu()" class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-900">
+                <i class="fa-brands fa-youtube mr-2 text-red-500"></i> YouTube Downloader
+            </button>
+            <button onclick="switchPlatform('instagram'); toggleMobileMenu()" class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-900">
+                <i class="fa-brands fa-instagram mr-2 text-pink-500"></i> Instagram Reel & Photo
+            </button>
+            <button onclick="switchPlatform('tiktok'); toggleMobileMenu()" class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-900">
+                <i class="fa-brands fa-tiktok mr-2 text-cyan-400"></i> TikTok (No Watermark)
+            </button>
+            <button onclick="switchPlatform('facebook'); toggleMobileMenu()" class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-900">
+                <i class="fa-brands fa-facebook mr-2 text-blue-500"></i> Facebook Video Saver
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow">
+        
+        <!-- Hero Input Section -->
+        <section class="relative overflow-hidden pt-12 pb-20 md:pt-20 md:pb-28">
+            <!-- Background Glow Decor -->
+            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-indigo-600/20 blur-[120px] rounded-full pointer-events-none"></div>
+
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+                
+                <!-- Platform Specific Badge -->
+                <div id="hero-badge" class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs sm:text-sm font-semibold mb-6">
+                    <span id="hero-badge-icon"><i class="fa-solid fa-bolt"></i></span>
+                    <span id="hero-badge-text" data-i18n="badge_all">Fastest Free Online Video Downloader</span>
+                </div>
+
+                <!-- Main Heading -->
+                <h1 id="hero-title" class="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight mb-4">
+                    <span data-i18n="hero_title_prefix">Download Videos & Audio from</span> <br class="hidden sm:inline">
+                    <span id="hero-platform-text" class="gradient-text">YouTube, Instagram, TikTok & FB</span>
+                </h1>
+
+                <!-- Subtitle -->
+                <p id="hero-subtitle" class="text-base sm:text-lg text-slate-400 max-w-2xl mx-auto mb-10" data-i18n="hero_desc">
+                    Paste any video link below to save high-quality MP4, 1080p, 4K or MP3 files instantly without registration.
+                </p>
+
+                <!-- Video Downloader Card -->
+                <div class="glass-card rounded-2xl p-3 sm:p-4 shadow-2xl border border-slate-700/60 glow-effect max-w-3xl mx-auto">
+                    <form id="download-form" onsubmit="handleDownload(event)" class="relative flex flex-col sm:flex-row items-center gap-3">
+                        <div class="relative w-full">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+                                <i id="input-icon" class="fa-solid fa-link text-lg"></i>
+                            </div>
+                            <input 
+                                type="text" 
+                                id="video-url" 
+                                oninput="detectPlatform(this.value)"
+                                placeholder="Paste video link here (e.g. https://www.youtube.com/watch?...)" 
+                                required
+                                class="w-full pl-11 pr-24 py-4 bg-slate-900/90 text-white rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm sm:text-base placeholder-slate-500 shadow-inner"
+                            >
+                            <button 
+                                type="button" 
+                                onclick="pasteClipboard()"
+                                class="absolute inset-y-2 right-2 px-3 flex items-center text-xs font-semibold text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700"
+                            >
+                                <i class="fa-regular fa-paste mr-1"></i> <span data-i18n="btn_paste">Paste</span>
+                            </button>
+                        </div>
+
+                        <button 
+                            type="submit" 
+                            id="submit-btn"
+                            class="w-full sm:w-auto min-w-[140px] py-4 px-6 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all duration-200 flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer text-sm sm:text-base"
+                        >
+                            <i class="fa-solid fa-download"></i>
+                            <span data-i18n="btn_download">Download</span>
+                        </button>
+                    </form>
+
+                    <!-- Loader & Processing Notification -->
+                    <div id="loader" class="hidden mt-6 p-6 bg-slate-900/80 rounded-xl border border-slate-800 text-center">
+                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent mb-3"></div>
+                        <p class="text-sm font-medium text-slate-300" data-i18n="msg_fetching">Analyzing link and extracting media formats...</p>
+                    </div>
+
+                    <!-- Notification Alert Box -->
+                    <div id="alert-box" class="hidden mt-4 p-3 rounded-lg text-sm text-center"></div>
+
+                    <!-- Result Section (Simulated Download Options) -->
+                    <div id="result-card" class="hidden mt-6 text-left border-t border-slate-800 pt-6 animate-fadeIn">
+                        <div class="flex flex-col md:flex-row gap-5 items-center">
+                            <!-- Video Thumbnail -->
+                            <div class="relative w-full md:w-56 h-36 rounded-lg overflow-hidden bg-slate-900 border border-slate-700 flex-shrink-0">
+                                <img id="res-thumb" src="https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=500&fit=crop" alt="Video Thumbnail" class="w-full h-full object-cover">
+                                <span id="res-duration" class="absolute bottom-2 right-2 px-2 py-0.5 text-xs bg-black/80 text-white rounded font-mono">03:45</span>
+                            </div>
+
+                            <!-- Video Meta & Downloads -->
+                            <div class="flex-grow w-full">
+                                <h3 id="res-title" class="font-bold text-slate-100 text-base line-clamp-2 mb-1">Sample HD Video Title Extracted Successfully</h3>
+                                <p id="res-author" class="text-xs text-slate-400 mb-4"><i class="fa-solid fa-user-circle mr-1"></i> Creator Channel Name</p>
+
+                                <!-- Available Quality Links Grid (filled by renderFormats) -->
+                                <div id="format-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fast Platform Icons Ribbon -->
+                <div class="mt-10 flex flex-wrap justify-center items-center gap-6 text-slate-500 text-sm">
+                    <span class="font-medium text-slate-400" data-i18n="lbl_supported">Supported Platforms:</span>
+                    <button onclick="switchPlatform('youtube')" class="flex items-center gap-1.5 hover:text-red-500 transition"><i class="fa-brands fa-youtube text-lg text-red-500"></i> YouTube</button>
+                    <button onclick="switchPlatform('instagram')" class="flex items-center gap-1.5 hover:text-pink-500 transition"><i class="fa-brands fa-instagram text-lg text-pink-500"></i> Instagram</button>
+                    <button onclick="switchPlatform('tiktok')" class="flex items-center gap-1.5 hover:text-cyan-400 transition"><i class="fa-brands fa-tiktok text-lg text-cyan-400"></i> TikTok</button>
+                    <button onclick="switchPlatform('facebook')" class="flex items-center gap-1.5 hover:text-blue-500 transition"><i class="fa-brands fa-facebook text-lg text-blue-500"></i> Facebook</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Feature Highlights Section -->
+        <section class="py-12 bg-slate-900/50 border-y border-slate-800">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    
+                    <div class="p-6 rounded-2xl bg-slate-900 border border-slate-800 flex items-start space-x-4">
+                        <div class="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 text-xl font-bold">
+                            <i class="fa-solid fa-bolt"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-lg text-slate-100 mb-1" data-i18n="feat_1_title">Ultra Fast Downloads</h3>
+                            <p class="text-sm text-slate-400 leading-relaxed" data-i18n="feat_1_desc">High-speed cloud processing servers render and serve video download links in seconds.</p>
+                        </div>
+                    </div>
+
+                    <div class="p-6 rounded-2xl bg-slate-900 border border-slate-800 flex items-start space-x-4">
+                        <div class="w-12 h-12 rounded-xl bg-pink-500/10 border border-pink-500/20 text-pink-400 flex items-center justify-center shrink-0 text-xl font-bold">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-lg text-slate-100 mb-1" data-i18n="feat_2_title">No Watermark & Full HD</h3>
+                            <p class="text-sm text-slate-400 leading-relaxed" data-i18n="feat_2_desc">Clean TikTok downloads without watermark, Instagram Reels in HD, and YouTube 1080p quality.</p>
+                        </div>
+                    </div>
+
+                    <div class="p-6 rounded-2xl bg-slate-900 border border-slate-800 flex items-start space-x-4">
+                        <div class="w-12 h-12 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 flex items-center justify-center shrink-0 text-xl font-bold">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-lg text-slate-100 mb-1" data-i18n="feat_3_title">100% Free & Safe</h3>
+                            <p class="text-sm text-slate-400 leading-relaxed" data-i18n="feat_3_desc">No accounts required, no paid subscriptions, and completely free from malware or viruses.</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- Platform Instructions Section (Dynamic Content) -->
+        <section class="py-16">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                
+                <div class="text-center mb-12">
+                    <h2 id="guide-title" class="text-2xl sm:text-4xl font-extrabold text-white mb-3">
+                        How to Download Videos
+                    </h2>
+                    <p id="guide-subtitle" class="text-slate-400 text-sm sm:text-base">
+                        Follow these simple steps to save videos directly to your device.
+                    </p>
+                </div>
+
+                <!-- Steps List -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="steps-container">
+                    <!-- Dynamic Steps Rendered via JavaScript -->
+                </div>
+
+            </div>
+        </section>
+
+        <!-- FAQ Section with Schema.org FAQPage compliance -->
+        <section class="py-16 bg-slate-900/40 border-t border-slate-800">
+            <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-12">
+                    <h2 class="text-2xl sm:text-4xl font-extrabold text-white mb-3" data-i18n="faq_title">
+                        Frequently Asked Questions
+                    </h2>
+                    <p class="text-slate-400 text-sm sm:text-base" data-i18n="faq_subtitle">
+                        Everything you need to know about downloading videos online.
+                    </p>
+                </div>
+
+                <!-- Accordion Items Container -->
+                <div class="space-y-4" id="faq-accordion">
+                    <!-- Rendered dynamically -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-950 border-t border-slate-800/80 text-slate-400 text-sm py-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+                
+                <!-- Col 1: Brand Info -->
+                <div class="space-y-4 md:col-span-1">
+                    <div class="flex items-center space-x-3 cursor-pointer" onclick="switchPlatform('all')">
+                        <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white">
+                            <i class="fa-solid fa-circle-down"></i>
+                        </div>
+                        <span class="text-lg font-bold text-white">MediaGrabber</span>
+                    </div>
+                    <p class="text-xs text-slate-400 leading-relaxed" data-i18n="footer_about">
+                        The ultimate free web tool for saving online media content from major social networks with maximum quality and speed.
+                    </p>
+                </div>
+
+                <!-- Col 2: Download Platforms -->
+                <div>
+                    <h4 class="text-white font-semibold mb-3 text-xs uppercase tracking-wider" data-i18n="footer_platforms">Platforms</h4>
+                    <ul class="space-y-2 text-xs">
+                        <li><a href="#" onclick="switchPlatform('youtube')" class="hover:text-white transition">YouTube Downloader</a></li>
+                        <li><a href="#" onclick="switchPlatform('instagram')" class="hover:text-white transition">Instagram Reels Saver</a></li>
+                        <li><a href="#" onclick="switchPlatform('tiktok')" class="hover:text-white transition">TikTok Video Downloader</a></li>
+                        <li><a href="#" onclick="switchPlatform('facebook')" class="hover:text-white transition">Facebook Video Downloader</a></li>
+                    </ul>
+                </div>
+
+                <!-- Col 3: Quick Links -->
+                <div>
+                    <h4 class="text-white font-semibold mb-3 text-xs uppercase tracking-wider" data-i18n="footer_links">Quick Links</h4>
+                    <ul class="space-y-2 text-xs">
+                        <li><a href="#guide-title" class="hover:text-white transition" data-i18n="nav_instructions">Instructions</a></li>
+                        <li><a href="#faq-accordion" class="hover:text-white transition" data-i18n="nav_faq">FAQ</a></li>
+                        <li><button onclick="openModal('privacy')" class="hover:text-white transition text-left" data-i18n="nav_privacy">Privacy Policy</button></li>
+                        <li><button onclick="openModal('terms')" class="hover:text-white transition text-left" data-i18n="nav_terms">Terms of Service</button></li>
+                    </ul>
+                </div>
+
+                <!-- Col 4: Contact & Disclaimer -->
+                <div>
+                    <h4 class="text-white font-semibold mb-3 text-xs uppercase tracking-wider" data-i18n="footer_support">Support</h4>
+                    <p class="text-xs text-slate-400 mb-3" data-i18n="footer_contact_text">Have questions or feedback? Contact our tech team.</p>
+                    <button onclick="openModal('contact')" class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-indigo-400 border border-slate-700 rounded-lg text-xs font-medium transition">
+                        <i class="fa-regular fa-envelope mr-1"></i> <span data-i18n="btn_contact">Contact Support</span>
+                    </button>
+                </div>
+
+            </div>
+
+            <!-- Disclaimer & Copyright -->
+            <div class="border-t border-slate-900 pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500">
+                <p>&copy; 2026 MediaGrabber. All rights reserved.</p>
+                <p class="mt-2 sm:mt-0 text-center sm:text-right text-[11px]" data-i18n="footer_disclaimer">
+                    MediaGrabber does not host copyright-protected videos on its servers. All files are downloaded directly from third-party CDNs.
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Info / Privacy Modal -->
+    <div id="modal-backdrop" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <h3 id="modal-title" class="text-xl font-bold text-white mb-4">Modal Title</h3>
+            <div id="modal-body" class="text-sm text-slate-300 space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                <!-- Content injected dynamically -->
+            </div>
+            <div class="mt-6 flex justify-end">
+                <button onclick="closeModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-semibold">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script Logic -->
+    <script>
+        // Language Translations Object
+        const translations = {
+            en: {
+                meta_title: "MediaGrabber - Fast Free Video Downloader for YouTube, Instagram, TikTok & Facebook",
+                meta_desc: "Download HD videos and MP3 audio from YouTube, Instagram Reels, TikTok without watermark, and Facebook for free in seconds.",
+                nav_all: "All-in-One",
+                badge_all: "Fastest Free Online Video Downloader",
+                hero_title_prefix: "Download Videos & Audio from",
+                hero_desc: "Paste any video link below to save high-quality MP4, 1080p, 4K or MP3 files instantly without registration.",
+                btn_paste: "Paste",
+                btn_download: "Download",
+                msg_fetching: "Analyzing video link & loading available formats...",
+                lbl_supported: "Supported Platforms:",
+                feat_1_title: "Ultra Fast Downloads",
+                feat_1_desc: "High-speed cloud processing servers render and serve video download links in seconds.",
+                feat_2_title: "No Watermark & Full HD",
+                feat_2_desc: "Clean TikTok downloads without watermark, Instagram Reels in HD, and YouTube 1080p quality.",
+                feat_3_title: "100% Free & Safe",
+                feat_3_desc: "No accounts required, no paid subscriptions, and completely free from malware or viruses.",
+                faq_title: "Frequently Asked Questions",
+                faq_subtitle: "Everything you need to know about downloading videos online.",
+                nav_instructions: "Instructions",
+                nav_faq: "FAQ",
+                nav_privacy: "Privacy Policy",
+                nav_terms: "Terms of Service",
+                footer_about: "The ultimate free web tool for saving online media content from major social networks with maximum quality and speed.",
+                footer_platforms: "Platforms",
+                footer_links: "Quick Links",
+                footer_support: "Support",
+                footer_contact_text: "Have questions or feedback? Contact our tech team.",
+                btn_contact: "Contact Support",
+                footer_disclaimer: "MediaGrabber does not host copyright-protected videos on its servers. All files are downloaded directly from third-party CDNs."
+            },
+            ru: {
+                meta_title: "MediaGrabber — Быстрый бесплатный загрузчик видео с YouTube, Instagram, TikTok и FB",
+                meta_desc: "Скачивайте HD видео и MP3 аудио с YouTube, Reels из Instagram, TikTok без водяного знака и Facebook бесплатно за считанные секунды.",
+                nav_all: "Все в одном",
+                badge_all: "Самый быстрый бесплатный онлайн загрузчик",
+                hero_title_prefix: "Скачивайте видео и аудио с",
+                hero_desc: "Вставьте ссылку на видео ниже, чтобы мгновенно сохранить файлы в MP4, 1080p, 4K или MP3 без регистрации.",
+                btn_paste: "Вставить",
+                btn_download: "Скачать",
+                msg_fetching: "Анализ ссылки и получение доступных форматов...",
+                lbl_supported: "Поддерживаемые платформы:",
+                feat_1_title: "Сверхскоростная загрузка",
+                feat_1_desc: "Высокоскоростные облачные серверы обрабатывают и предоставляют ссылки за секунды.",
+                feat_2_title: "Без водяных знаков и Full HD",
+                feat_2_desc: "Чистые видео из TikTok без логотипа, Instagram Reels в HD и YouTube в 1080p качестве.",
+                feat_3_title: "100% Бесплатно и безопасно",
+                feat_3_desc: "Не требуется регистрация, нет платных подписок и никаких вирусов.",
+                faq_title: "Часто задаваемые вопросы",
+                faq_subtitle: "Всё, что вам нужно знать о скачивании видео онлайн.",
+                nav_instructions: "Инструкции",
+                nav_faq: "FAQ",
+                nav_privacy: "Политика конфиденциальности",
+                nav_terms: "Условия использования",
+                footer_about: "Лучший бесплатный веб-инструмент для сохранения видеоконтента из основных социальных сетей в максимальном качестве.",
+                footer_platforms: "Платформы",
+                footer_links: "Быстрые ссылки",
+                footer_support: "Поддержка",
+                footer_contact_text: "Есть вопросы или предложения? Напишите нашей команде.",
+                btn_contact: "Связаться с нами",
+                footer_disclaimer: "MediaGrabber не хранит защищенные авторским правом видео на своих серверах. Все файлы скачиваются напрямую с CDN сервисов."
+            },
+            ua: {
+                meta_title: "MediaGrabber — Безкоштовный завантажувач відео з YouTube, Instagram, TikTok та Facebook",
+                meta_desc: "Завантажуйте HD відео та MP3 аудіо з YouTube, Reels з Instagram, TikTok без водяного знаку та Facebook безкоштовно.",
+                nav_all: "Все в одному",
+                badge_all: "Найшвидший безкоштовний онлайн завантажувач",
+                hero_title_prefix: "Завантажуйте відео та аудіо з",
+                hero_desc: "Вставте посилання на відео нижче, щоб миттєво зберегти файли в MP4, 1080p, 4K або MP3 без реєстрації.",
+                btn_paste: "Вставити",
+                btn_download: "Завантажити",
+                msg_fetching: "Аналіз посилання та отримання доступних форматів...",
+                lbl_supported: "Підтримувані платформи:",
+                feat_1_title: "Ультрашвидке завантаження",
+                feat_1_desc: "Високошвидкісні хмарні сервери обробляють та надають посилання за лічені секунди.",
+                feat_2_title: "Без водяного знаку та Full HD",
+                feat_2_desc: "Чисті відео з TikTok без логотипу, Instagram Reels у HD та YouTube у якості 1080p.",
+                feat_3_title: "100% Безкоштовно та безпечно",
+                feat_3_desc: "Без реєстрацій, без платних підписок та повністю безпечно від вірусів.",
+                faq_title: "Часті запитання",
+                faq_subtitle: "Все, що вам потрібно знати про завантаження відео онлайн.",
+                nav_instructions: "Інструкції",
+                nav_faq: "Часті питання",
+                nav_privacy: "Політика конфіденційності",
+                nav_terms: "Умови використання",
+                footer_about: "Кращий безкоштовний веб-інструмент для збереження відеоконтенту з основних соціальних мереж у максимальній якості.",
+                footer_platforms: "Платформи",
+                footer_links: "Швидкі посилання",
+                footer_support: "Підтримка",
+                footer_contact_text: "Маєте запитання? Зв'яжіться з нашою технічною командою.",
+                btn_contact: "Написати підтримці",
+                footer_disclaimer: "MediaGrabber не зберігає захищені авторським правом відео на своїх серверах. Всі файли завантажуються напряму."
+            }
+        };
+
+        // Instructions Data Per Platform
+        const platformInstructions = {
+            all: {
+                title: { en: "How to Download Any Video", ru: "Как скачать любое видео", ua: "Як завантажити будь-яке відео" },
+                steps: [
+                    { icon: "fa-solid fa-copy", title: { en: "1. Copy Video Link", ru: "1. Скопируйте ссылку", ua: "1. Скопіюйте посилання" }, desc: { en: "Open YouTube, Instagram, TikTok or Facebook and copy the video URL.", ru: "Откройте YouTube, Instagram, TikTok или Facebook и скопируйте URL видео.", ua: "Відкрийте YouTube, Instagram, TikTok або Facebook та скопіюйте URL відео." } },
+                    { icon: "fa-solid font-black fa-paste", title: { en: "2. Paste Link Here", ru: "2. Вставьте ссылку", ua: "2. Вставте посилання" }, desc: { en: "Paste the copied web address into the search input field above.", ru: "Вставьте скопированный веб-адрес в поле ввода выше.", ua: "Вставте скопійовану веб-адресу в поле вводу вище." } },
+                    { icon: "fa-solid fa-file-arrow-down", title: { en: "3. Choose & Download", ru: "3. Выберите и скачайте", ua: "3. Оберіть та завантажте" }, desc: { en: "Select desired video quality (1080p, 720p, MP3) and click Download.", ru: "Выберите нужное качество (1080p, 720p, MP3) и нажмите Скачать.", ua: "Оберіть потрібну якість (1080p, 720p, MP3) та натисніть Завантажити." } }
+                ]
+            },
+            youtube: {
+                title: { en: "How to Download YouTube Videos & Shorts", ru: "Как скачать видео и Shorts с YouTube", ua: "Як завантажити відео та Shorts з YouTube" },
+                steps: [
+                    { icon: "fa-brands fa-youtube", title: { en: "1. Find YouTube Video", ru: "1. Найдите видео на YouTube", ua: "1. Знайдіть відео на YouTube" }, desc: { en: "Open YouTube video or Shorts clip and copy link from URL bar or Share button.", ru: "Откройте видео или Shorts на YouTube и скопируйте ссылку через кнопку Поделиться.", ua: "Відкрийте відео або Shorts на YouTube та скопіюйте посилання через кнопку Поділитися." } },
+                    { icon: "fa-solid fa-keyboard", title: { en: "2. Insert URL", ru: "2. Вставьте URL", ua: "2. Вставте URL" }, desc: { en: "Insert the YouTube link into our converter search box.", ru: "Вставьте ссылку YouTube в строку поиска нашего конвертера.", ua: "Вставте посилання YouTube у рядок пошуку нашого конвертера." } },
+                    { icon: "fa-solid fa-circle-down", title: { en: "3. Save MP4 / MP3", ru: "3. Сохраните MP4 / MP3", ua: "3. Збережіть MP4 / MP3" }, desc: { en: "Click Download to save video in 1080p HD resolution or audio MP3.", ru: "Нажмите Скачать для сохранения видео в 1080p HD или MP3 аудио.", ua: "Натисніть Завантажити для збереження відео в 1080p HD або MP3 аудіо." } }
+                ]
+            },
+            instagram: {
+                title: { en: "How to Download Instagram Reels & Photos", ru: "Как скачать Reels и фото из Instagram", ua: "Як завантажити Reels та фото з Instagram" },
+                steps: [
+                    { icon: "fa-brands fa-instagram", title: { en: "1. Copy Reel / Post Link", ru: "1. Скопируйте ссылку на Reel / Пост", ua: "1. Скопіюйте посилання на Reel / Допис" }, desc: { en: "Tap the 3 dots (...) on Instagram post or Reel and choose Copy Link.", ru: "Нажмите на 3 точки (...) в Instagram и выберите Скопировать ссылку.", ua: "Натисніть на 3 крапки (...) в Instagram та оберіть Скопіювати посилання." } },
+                    { icon: "fa-solid fa-paste", title: { en: "2. Paste into MediaGrabber", ru: "2. Вставьте в MediaGrabber", ua: "2. Вставте в MediaGrabber" }, desc: { en: "Paste Instagram post URL into the search field above.", ru: "Вставьте ссылку Instagram в поле ввода выше.", ua: "Вставте посилання Instagram у поле вводу вище." } },
+                    { icon: "fa-solid fa-image", title: { en: "3. Save Media", ru: "3. Сохраните медиа", ua: "3. Збережіть медіа" }, desc: { en: "Get HD video Reel or high-resolution photos directly to your camera roll.", ru: "Получите HD видео Reel или фото высокого разрешения на устройство.", ua: "Отримайте HD відео Reel або фото високої роздільної здатності на пристрій." } }
+                ]
+            },
+            tiktok: {
+                title: { en: "How to Download TikTok Without Watermark", ru: "Как скачать TikTok без водяного знака", ua: "Як завантажити TikTok без водяного знака" },
+                steps: [
+                    { icon: "fa-brands fa-tiktok", title: { en: "1. Share & Copy Link", ru: "1. Поделиться и скопировать", ua: "1. Поділитися та скопіювати" }, desc: { en: "Open TikTok app, tap Share on your target video, and select Copy Link.", ru: "Откройте TikTok, нажмите Поделиться и выберите Скопировать ссылку.", ua: "Відкрийте TikTok, натисніть Поділитися та оберіть Скопіювати посилання." } },
+                    { icon: "fa-solid fa-link", title: { en: "2. Paste TikTok Link", ru: "2. Вставьте ссылку TikTok", ua: "2. Вставте посилання TikTok" }, desc: { en: "Paste URL into MediaGrabber downloader bar.", ru: "Вставьте ссылку в строку загрузки MediaGrabber.", ua: "Вставте посилання в рядок завантаження MediaGrabber." } },
+                    { icon: "fa-solid fa-wand-magic-sparkles", title: { en: "3. Download Clean Video", ru: "3. Скачайте чистое видео", ua: "3. Завантажте чисте відео" }, desc: { en: "Download MP4 video completely clear of TikTok watermark logo.", ru: "Скачайте MP4 видео полностью очищенное от водяного знака TikTok.", ua: "Завантажте MP4 відео повністю очищене від водяного знака TikTok." } }
+                ]
+            },
+            facebook: {
+                title: { en: "How to Save Facebook Videos", ru: "Как сохранить видео из Facebook", ua: "Як зберегти відео з Facebook" },
+                steps: [
+                    { icon: "fa-brands fa-facebook", title: { en: "1. Copy Video URL", ru: "1. Скопируйте URL видео", ua: "1. Скопіюйте URL відео" }, desc: { en: "Click Share button under Facebook video and choose Copy Link.", ru: "Нажмите Поделиться под видео в Facebook и выберите Скопировать ссылку.", ua: "Натисніть Поділитися під відео у Facebook та оберіть Скопіювати посилання." } },
+                    { icon: "fa-solid fa-paste", title: { en: "2. Insert Video Link", ru: "2. Вставьте ссылку на видео", ua: "2. Вставте посилання на відео" }, desc: { en: "Paste Facebook video URL into the input field above.", ru: "Вставьте URL видео из Facebook в поле выше.", ua: "Вставте URL відео з Facebook у поле вище." } },
+                    { icon: "fa-solid fa-cloud-arrow-down", title: { en: "3. Download HD Video", ru: "3. Скачайте HD видео", ua: "3. Завантажте HD відео" }, desc: { en: "Select HD or SD video quality and click Download to save.", ru: "Выберите HD или SD качество и нажмите Скачать.", ua: "Оберіть HD або SD якість та натисніть Завантажити." } }
+                ]
+            }
+        };
+
+        // FAQ Data per Language
+        const faqData = {
+            en: [
+                { q: "Is MediaGrabber completely free to use?", a: "Yes! MediaGrabber is 100% free with unlimited downloads for YouTube, Instagram, TikTok, and Facebook without hidden subscriptions." },
+                { q: "Can I download TikTok videos without a watermark?", a: "Absolutely. Our TikTok downloader automatically removes the original TikTok watermark so you get a clean MP4 video file." },
+                { q: "Where are downloaded video files saved on my device?", a: "Downloaded files are saved in your device default 'Downloads' folder (Downloads on Windows/Mac, Files/Photos on iOS and Android)." },
+                { q: "Do I need to install software or browser extensions?", a: "No installation required. MediaGrabber is an online cloud tool that works directly in any web browser on desktop, mobile, or tablet." }
+            ],
+            ru: [
+                { q: "Является ли MediaGrabber абсолютно бесплатным?", a: "Да! MediaGrabber на 100% бесплатен и предоставляет неограниченное скачивание с YouTube, Instagram, TikTok и Facebook без скрытых подписок." },
+                { q: "Могу ли я скачать видео из TikTok без водяного знака?", a: "Конечно. Наш загрузчик TikTok автоматически удаляет водяной знак, предоставляя вам чистый MP4 файл." },
+                { q: "Куда сохраняются загруженные файлы на устройстве?", a: "Файлы сохраняются в системную папку 'Загрузки' (Downloads) на компьютере или в галерею/файлы на смартфонах." },
+                { q: "Нужно ли устанавливать программы или расширения?", a: "Ничего устанавливать не нужно. MediaGrabber работает онлайн прямо в любом веб-браузере на телефонах и ПК." }
+            ],
+            ua: [
+                { q: "Чи є MediaGrabber повністю безкоштовним?", a: "Так! MediaGrabber на 100% безкоштовний і надає необмежене завантаження з YouTube, Instagram, TikTok та Facebook без підписок." },
+                { q: "Чи можу я завантажити відео з TikTok без водяного знака?", a: "Звичайно. Наш завантажувач TikTok автоматично видаляє логотип TikTok, надаючи вам чистий MP4 файл." },
+                { q: "Куди зберігаються завантажені файли на моєму пристрої?", a: "Завантажені файли зберігаються в системну папку 'Завантаження' (Downloads) або в галерею вашого смартфона." },
+                { q: "Чи потрібно встановлювати програми або розширення?", a: "Встановлення не потрібне. MediaGrabber працює онлайн безпосередньо в будь-якому браузері." }
+            ]
+        };
+
+        // Active Application State
+        let currentLang = 'en';
+        let currentPlatform = 'all';
+
+        // Initialize Application
+        window.onload = function() {
+            // Detect URL parameter language if set
+            const urlParams = new URLSearchParams(window.location.search);
+            const langParam = urlParams.get('lang');
+            if (langParam && ['en', 'ru', 'ua'].includes(langParam)) {
+                currentLang = langParam;
+                document.getElementById('lang-select').value = langParam;
+            }
+            
+            updateLanguageUI();
+            renderInstructions();
+            renderFAQ();
+        };
+
+        // Language Switcher Function
+        function changeLanguage(lang) {
+            currentLang = lang;
+            document.documentElement.lang = lang === 'ua' ? 'uk' : lang;
+            updateLanguageUI();
+            renderInstructions();
+            renderFAQ();
+        }
+
+        // Update Text Content via Data Attributes
+        function updateLanguageUI() {
+            const langObj = translations[currentLang];
+            
+            // Update Title & Meta
+            document.getElementById('meta-title').innerText = langObj.meta_title;
+            document.getElementById('meta-desc').setAttribute('content', langObj.meta_desc);
+            document.getElementById('og-title').setAttribute('content', langObj.meta_title);
+            document.getElementById('og-desc').setAttribute('content', langObj.meta_desc);
+
+            // Update Elements with data-i18n
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (langObj[key]) {
+                    el.innerText = langObj[key];
+                }
+            });
+        }
+
+        // Switch Platform View
+        function switchPlatform(platform) {
+            currentPlatform = platform;
+            
+            // Highlight Nav Buttons
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-indigo-600', 'text-white', 'shadow-md');
+                btn.classList.add('text-slate-400');
+            });
+            const activeBtn = document.getElementById(`nav-${platform}`);
+            if (activeBtn) {
+                activeBtn.classList.add('bg-indigo-600', 'text-white', 'shadow-md');
+                activeBtn.classList.remove('text-slate-400');
+            }
+
+            // Platform Hero Text Customization
+            const heroText = document.getElementById('hero-platform-text');
+            const heroBadgeText = document.getElementById('hero-badge-text');
+            const heroBadgeIcon = document.getElementById('hero-badge-icon');
+            const inputIcon = document.getElementById('input-icon');
+
+            if (platform === 'youtube') {
+                heroText.innerText = "YouTube Video & Shorts";
+                heroBadgeText.innerText = "YouTube Video & Audio Downloader";
+                heroBadgeIcon.innerHTML = `<i class="fa-brands fa-youtube text-red-500"></i>`;
+                inputIcon.className = "fa-brands fa-youtube text-red-500 text-lg";
+            } else if (platform === 'instagram') {
+                heroText.innerText = "Instagram Reels & Photos";
+                heroBadgeText.innerText = "Instagram HD Saver";
+                heroBadgeIcon.innerHTML = `<i class="fa-brands fa-instagram text-pink-500"></i>`;
+                inputIcon.className = "fa-brands fa-instagram text-pink-500 text-lg";
+            } else if (platform === 'tiktok') {
+                heroText.innerText = "TikTok Videos (No Watermark)";
+                heroBadgeText.innerText = "TikTok Watermark Remover";
+                heroBadgeIcon.innerHTML = `<i class="fa-brands fa-tiktok text-cyan-400"></i>`;
+                inputIcon.className = "fa-brands fa-tiktok text-cyan-400 text-lg";
+            } else if (platform === 'facebook') {
+                heroText.innerText = "Facebook Clips & Videos";
+                heroBadgeText.innerText = "Facebook HD Saver";
+                heroBadgeIcon.innerHTML = `<i class="fa-brands fa-facebook text-blue-500"></i>`;
+                inputIcon.className = "fa-brands fa-facebook text-blue-500 text-lg";
+            } else {
+                heroText.innerText = "YouTube, Instagram, TikTok & FB";
+                heroBadgeText.innerText = translations[currentLang].badge_all;
+                heroBadgeIcon.innerHTML = `<i class="fa-solid fa-bolt"></i>`;
+                inputIcon.className = "fa-solid fa-link text-lg";
+            }
+
+            // Re-render instructions for active platform
+            renderInstructions();
+            
+            // Scroll smoothly to downloader input
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Render Platform Instructions
+        function renderInstructions() {
+            const data = platformInstructions[currentPlatform] || platformInstructions['all'];
+            document.getElementById('guide-title').innerText = data.title[currentLang] || data.title['en'];
+            
+            const container = document.getElementById('steps-container');
+            container.innerHTML = '';
+
+            data.steps.forEach(step => {
+                const titleText = step.title[currentLang] || step.title['en'];
+                const descText = step.desc[currentLang] || step.desc['en'];
+                
+                const card = document.createElement('div');
+                card.className = "p-6 rounded-2xl bg-slate-900 border border-slate-800 text-center relative flex flex-col items-center hover:border-slate-700 transition";
+                card.innerHTML = `
+                    <div class="w-14 h-14 rounded-2xl bg-indigo-600/10 border border-indigo-500/30 text-indigo-400 flex items-center justify-center text-2xl mb-4 shadow-inner">
+                        <i class="${step.icon}"></i>
+                    </div>
+                    <h4 class="font-bold text-slate-100 text-base mb-2">${titleText}</h4>
+                    <p class="text-xs text-slate-400 leading-relaxed">${descText}</p>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Render FAQ and Inject Schema.org FAQPage JSON-LD
+        function renderFAQ() {
+            const list = faqData[currentLang] || faqData['en'];
+            const container = document.getElementById('faq-accordion');
+            container.innerHTML = '';
+
+            // Schema.org FAQ Data Array
+            const schemaList = [];
+
+            list.forEach((item, idx) => {
+                schemaList.push({
+                    "@type": "Question",
+                    "name": item.q,
+                    "acceptedAnswer": {
+                        "@type": "Answer",
+                        "text": item.a
+                    }
+                });
+
+                const faqCard = document.createElement('div');
+                faqCard.className = "border border-slate-800 rounded-xl overflow-hidden bg-slate-900/90";
+                faqCard.innerHTML = `
+                    <button onclick="toggleFAQ(${idx})" class="w-full text-left p-4 sm:p-5 flex justify-between items-center text-sm sm:text-base font-semibold text-slate-200 hover:text-white transition">
+                        <span>${item.q}</span>
+                        <i id="faq-icon-${idx}" class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform duration-200"></i>
+                    </button>
+                    <div id="faq-answer-${idx}" class="hidden p-4 sm:p-5 pt-0 text-xs sm:text-sm text-slate-400 border-t border-slate-800/50 leading-relaxed">
+                        ${item.a}
+                    </div>
+                `;
+                container.appendChild(faqCard);
+            });
+
+            // Update Dynamic Schema JSON-LD
+            const faqSchema = {
+                "@context": "https://schema.org",
+                "@type": "FAQPage",
+                "mainEntity": schemaList
+            };
+            document.getElementById('schema-faq').textContent = JSON.stringify(faqSchema);
+        }
+
+        // Toggle Accordion Item
+        function toggleFAQ(idx) {
+            const answer = document.getElementById(`faq-answer-${idx}`);
+            const icon = document.getElementById(`faq-icon-${idx}`);
+            if (answer.classList.contains('hidden')) {
+                answer.classList.remove('hidden');
+                icon.classList.add('rotate-180');
+            } else {
+                answer.classList.add('hidden');
+                icon.classList.remove('rotate-180');
+            }
+        }
+
+        // Platform URL Detection Logic
+        function detectPlatform(url) {
+            const inputIcon = document.getElementById('input-icon');
+            if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                inputIcon.className = "fa-brands fa-youtube text-red-500 text-lg";
+            } else if (url.includes('instagram.com')) {
+                inputIcon.className = "fa-brands fa-instagram text-pink-500 text-lg";
+            } else if (url.includes('tiktok.com')) {
+                inputIcon.className = "fa-brands fa-tiktok text-cyan-400 text-lg";
+            } else if (url.includes('facebook.com') || url.includes('fb.watch')) {
+                inputIcon.className = "fa-brands fa-facebook text-blue-500 text-lg";
+            } else {
+                inputIcon.className = "fa-solid fa-link text-lg text-slate-400";
+            }
+        }
+
+        // Clipboard Paste Helper
+        function pasteClipboard() {
+            if (navigator.clipboard && navigator.clipboard.readText) {
+                navigator.clipboard.readText().then(text => {
+                    document.getElementById('video-url').value = text;
+                    detectPlatform(text);
+                }).catch(() => {
+                    showAlert("Clipboard access denied or unavailable. Please paste manually.", "bg-yellow-500/20 text-yellow-300");
+                });
+            } else {
+                showAlert("Please press Ctrl+V / Cmd+V to paste manually.", "bg-yellow-500/20 text-yellow-300");
+            }
+        }
+
+        // Backend endpoints served by the same origin as this page.
+        const META_ENDPOINT = '/api/post/get';
+
+        // Turn a download URL returned by the API into a same-origin relative
+        // path. The API may embed its own host/port, so the link is rebased
+        // onto the origin this page is actually served from.
+        function buildDownloadUrl(formatUrl, title) {
+            const source = new URL(formatUrl, window.location.origin);
+            const target = new URL(source.pathname + source.search, window.location.origin);
+            if (title) {
+                target.searchParams.set('title', title);
+            }
+            return target.pathname + target.search;
+        }
+
+        // Create a single download button for one media format.
+        function createFormatButton(options) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'flex items-center justify-between p-2.5 bg-slate-900 hover:bg-slate-800 rounded-lg border border-slate-700 transition';
+            button.onclick = () => triggerFileSave(options.href, options.label);
+
+            const info = document.createElement('div');
+            info.className = 'flex items-center gap-2';
+
+            const badge = document.createElement('span');
+            badge.className = `px-2 py-0.5 text-xs font-bold rounded ${options.badgeClass}`;
+            badge.innerText = options.badge;
+
+            const label = document.createElement('span');
+            label.className = 'text-xs font-semibold text-slate-200';
+            label.innerText = options.label;
+
+            info.append(badge, label);
+
+            const size = document.createElement('span');
+            size.className = 'text-xs text-indigo-400 font-medium flex items-center';
+            size.innerHTML = options.icon;
+            size.append(document.createTextNode(` ${options.size}`));
+
+            button.append(info, size);
+            return button;
+        }
+
+        // Fill the result card with the formats returned by the backend.
+        function renderFormats(post) {
+            const grid = document.getElementById('format-grid');
+            grid.innerHTML = '';
+
+            const videos = post.videos || [];
+            const audios = post.audios || [];
+
+            videos.forEach(video => {
+                grid.appendChild(createFormatButton({
+                    href: buildDownloadUrl(video.url, post.title),
+                    badge: video.format,
+                    badgeClass: 'bg-green-500/20 text-green-400',
+                    label: `${video.resolution} video`,
+                    size: video.size,
+                    icon: '<i class="fa-solid fa-download mr-1"></i>',
+                }));
+            });
+
+            audios.forEach(audio => {
+                grid.appendChild(createFormatButton({
+                    href: buildDownloadUrl(audio.url, post.title),
+                    badge: audio.format,
+                    badgeClass: 'bg-purple-500/20 text-purple-400',
+                    label: `Audio ${audio.bitrate}`,
+                    size: audio.size,
+                    icon: '<i class="fa-solid fa-music mr-1"></i>',
+                }));
+            });
+
+            return videos.length + audios.length;
+        }
+
+        // Put post metadata into the result card.
+        function fillResultCard(post) {
+            document.getElementById('res-title').innerText = post.title || 'Untitled media';
+
+            const authorEl = document.getElementById('res-author');
+            authorEl.innerHTML = '<i class="fa-solid fa-user-circle mr-1"></i>';
+            authorEl.append(document.createTextNode(post.author || 'Unknown creator'));
+
+            document.getElementById('res-duration').innerText = post.duration || '—';
+
+            const thumb = document.getElementById('res-thumb');
+            if (post.thumbnail) {
+                thumb.onerror = () => {
+                    // Fall back to the stock preview when YouTube has none.
+                    thumb.onerror = null;
+                    thumb.src = 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=500&fit=crop';
+                };
+                thumb.src = post.thumbnail;
+            }
+
+            return renderFormats(post);
+        }
+
+        // Read a JSON error body produced by the backend.
+        async function readApiError(response) {
+            try {
+                const payload = await response.json();
+                if (typeof payload.detail === 'string') return payload.detail;
+                if (Array.isArray(payload.detail)) {
+                    return payload.detail.map(item => item.msg || JSON.stringify(item)).join('; ');
+                }
+            } catch (error) {
+                // Fall through to the generic status message below.
+            }
+            return `Request failed with status ${response.status}`;
+        }
+
+        // Handle Download Form Submit (real backend extraction)
+        async function handleDownload(e) {
+            e.preventDefault();
+            const url = document.getElementById('video-url').value.trim();
+            const loader = document.getElementById('loader');
+            const resultCard = document.getElementById('result-card');
+
+            if (!url) return;
+
+            // Basic URL Validation
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                showAlert("Please enter a valid URL starting with http:// or https://", "bg-red-500/20 text-red-400 border border-red-500/30");
+                return;
+            }
+
+            // Hide previous results and show loader
+            document.getElementById('alert-box').classList.add('hidden');
+            resultCard.classList.add('hidden');
+            loader.classList.remove('hidden');
+
+            try {
+                const response = await fetch(`${META_ENDPOINT}?${new URLSearchParams({ url })}`);
+                if (!response.ok) {
+                    throw new Error(await readApiError(response));
+                }
+
+                const payload = await response.json();
+                const post = payload && payload.post;
+                if (!post) {
+                    throw new Error('The server returned an empty response');
+                }
+
+                if (fillResultCard(post) === 0) {
+                    throw new Error('No downloadable formats were found for this link');
+                }
+
+                resultCard.classList.remove('hidden');
+            } catch (error) {
+                showAlert(
+                    error.message || 'Unable to analyze this link. Please try again.',
+                    "bg-red-500/20 text-red-400 border border-red-500/30"
+                );
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+
+        // Start a real file download through the backend streaming endpoint.
+        function triggerFileSave(href, label) {
+            if (!href) return;
+
+            showAlert(
+                `Starting download: ${label}. Your file will be saved shortly!`,
+                "bg-green-500/20 text-green-300 border border-green-500/30"
+            );
+
+            // The response carries Content-Disposition: attachment, so the
+            // browser saves it instead of navigating away from this page.
+            const link = document.createElement('a');
+            link.href = href;
+            link.rel = 'noopener';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        }
+
+        // Helper Alert Message Box
+        function showAlert(msg, colorClass) {
+            const box = document.getElementById('alert-box');
+            box.className = `mt-4 p-3 rounded-lg text-xs sm:text-sm text-center ${colorClass}`;
+            box.innerText = msg;
+            box.classList.remove('hidden');
+        }
+
+        // Toggle Mobile Menu
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('hidden');
+        }
+
+        // Modal Controls (Privacy / Terms / Contact)
+        function openModal(type) {
+            const backdrop = document.getElementById('modal-backdrop');
+            const title = document.getElementById('modal-title');
+            const body = document.getElementById('modal-body');
+
+            if (type === 'privacy') {
+                title.innerText = "Privacy Policy";
+                body.innerHTML = `
+                    <p>MediaGrabber values your privacy. We do not store or collect personal user data or history of videos downloaded.</p>
+                    <p>All processing is executed on temporary server sessions, ensuring complete security and confidentiality.</p>
+                `;
+            } else if (type === 'terms') {
+                title.innerText = "Terms of Service";
+                body.innerHTML = `
+                    <p>MediaGrabber provides media link parsing services for public media files for personal offline use.</p>
+                    <p>Users are responsible for honoring copyright laws and content ownership rights of creators.</p>
+                `;
+            } else if (type === 'contact') {
+                title.innerText = "Contact Support";
+                body.innerHTML = `
+                    <p>For technical inquiries, bug reports or feedback, contact us at:</p>
+                    <p class="font-bold text-indigo-400">support@mediagrabber.app</p>
+                `;
+            }
+
+            backdrop.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('modal-backdrop').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
