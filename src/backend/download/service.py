@@ -3,6 +3,9 @@
 The service turns resolved platform links into HTTP streams: audio bytes are
 relayed from the upstream host, while video is stitched on the fly with ffmpeg
 and pushed to the client as a fragmented MP4.
+
+It is platform-agnostic: it holds all registered platform services and
+dispatches each request to the one whose ``PLATFORM`` marker matches the URL.
 """
 
 import asyncio
@@ -23,7 +26,7 @@ from starlette.responses import StreamingResponse
 from src.backend.download.exceptions import MediaNotAvailable, PlatformNotSupported
 from src.backend.download.schemas import DownloadRequest, DownloadResponse
 from src.platforms.core.schemas import ResolvedAudio, ResolvedStreams
-from src.platforms.youtube.service import YoutubeService
+from src.platforms.core.service import PlatformService
 
 logger = logging.getLogger(__name__)
 
@@ -76,9 +79,21 @@ class DownloadService:
 
     def __init__(
             self,
-            youtube_service: YoutubeService
+            services: list[PlatformService]
     ) -> None:
-        self._youtube_service = youtube_service
+        self._services = {service.PLATFORM: service for service in services}
+
+    def _get_service(self, url: str) -> PlatformService:
+        """Pick the platform service whose marker appears in the URL.
+
+        Raises:
+            PlatformNotSupported: When no known platform marker is present.
+        """
+        lowered = url.lower()
+        for platform, service in self._services.items():
+            if platform in lowered:
+                return service
+        raise PlatformNotSupported(f"Unsupported platform for url: {url}")
 
     async def get_download_url(self, request: DownloadRequest) -> DownloadResponse:
         """Fetch and parse metadata of the given post.
@@ -88,23 +103,14 @@ class DownloadService:
                 this server knows how to handle.
             MediaNotAvailable: When the upstream host cannot be extracted.
         """
-        self._ensure_supported(request.url)
+        service = self._get_service(request.url)
 
         try:
-            post = await self._youtube_service.get_post_info(url=request.url)
+            post = await service.get_post_info(url=request.url)
         except Exception as exc:  # noqa: BLE001 - reported to the client as a 5xx
             raise MediaNotAvailable(f"Unable to extract media info: {exc}") from exc
 
         return DownloadResponse(post=post)
-
-    def _ensure_supported(self, url: str) -> None:
-        """Reject URLs that do not belong to a platform this server supports.
-
-        Raises:
-            PlatformNotSupported: When no known platform marker is present.
-        """
-        if self._youtube_service.PLATFORM not in url:
-            raise PlatformNotSupported(f"Unsupported platform for url: {url}")
 
     async def stream_audio(
             self,
@@ -117,8 +123,8 @@ class DownloadService:
         The upstream connection is opened *before* the response is created so
         that rate limits can still be retried with a proper HTTP status code.
         """
-        self._ensure_supported(url)
-        resolved = await self._resolve_audio(url=url, format_id=format_id)
+        service = self._get_service(url)
+        resolved = await service.resolve_audio(url=url, format_id=format_id)
         source = await self._open_source(resolved.url)
 
         media_type = source.headers.get("Content-Type", "").split(";")[0].strip()
@@ -150,8 +156,8 @@ class DownloadService:
             title: str | None = None,
     ) -> StreamingResponse:
         """Merge video with its audio track and stream the result as MP4."""
-        self._ensure_supported(url)
-        streams = await self._resolve_streams(url=url, height=height)
+        service = self._get_service(url)
+        streams = await service.resolve_streams(url=url, height=height)
 
         if shutil.which("ffmpeg") is None:
             raise MediaNotAvailable("ffmpeg is not installed on the server")
@@ -162,20 +168,6 @@ class DownloadService:
             media_type="video/mp4",
             headers={"Content-Disposition": _content_disposition(filename)},
         )
-
-    async def _resolve_audio(self, url: str, format_id: str) -> ResolvedAudio:
-        """Ask the platform layer for a direct audio URL."""
-        try:
-            return await self._youtube_service.resolve_audio(url=url, format_id=format_id)
-        except Exception as exc:  # noqa: BLE001 - reported to the client as a 5xx
-            raise MediaNotAvailable(f"Unable to resolve audio format: {exc}") from exc
-
-    async def _resolve_streams(self, url: str, height: int) -> ResolvedStreams:
-        """Ask the platform layer for the video/audio pair of a quality."""
-        try:
-            return await self._youtube_service.resolve_streams(url=url, height=height)
-        except Exception as exc:  # noqa: BLE001 - reported to the client as a 5xx
-            raise MediaNotAvailable(f"Unable to resolve video format: {exc}") from exc
 
     @staticmethod
     async def _open_source(url: str) -> Any:
