@@ -46,11 +46,13 @@ class BaseParser:
         when yt-dlp does not provide ``filesize``/``filesize_approx``.
         """
         size = fmt.get("filesize") or fmt.get("filesize_approx") or 0
-        if size and duration:
+        if size:
             return size
         if duration and fmt.get("tbr"):
             # tbr in kbit/s -> bytes = kbit * 1000 / 8 * seconds
             return fmt["tbr"] * 1000 * duration / 8
+        # If we have tbr but no duration, or no filesize and no duration,
+        # return the filesize (may be 0 — UI will show "—").
         return size
 
     @staticmethod
