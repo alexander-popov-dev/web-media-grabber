@@ -1,76 +1,30 @@
-"""YouTube extraction layer built on top of yt-dlp.
+"""YouTube extraction layer built on top of the shared base scraper.
 
-The scraper only talks to yt-dlp: it resolves post metadata and turns a
-requested quality/format into direct media URLs that the backend is able to
-stream. It never builds HTTP responses itself.
+Adds YouTube-specific format selectors and the ``js_runtimes`` +
+``remote_components`` options that are mandatory for YouTube (without them
+yt-dlp cannot solve the signature challenge and silently drops several
+progressive formats).
 """
 
-import asyncio
 import logging
 from typing import Any
 
 import yt_dlp
 from yt_dlp.utils import DownloadError
 
+from src.platforms.core.scraper import BaseScraper
 from src.platforms.core.schemas import ResolvedAudio, ResolvedStreams
 
 logger = logging.getLogger(__name__)
 
-# Options shared by every extraction call.
-# `js_runtimes` and `remote_components` are mandatory: without them yt-dlp
-# cannot solve the "n" signature challenge and silently drops several
-# progressive formats from the result. `socket_timeout` keeps unreachable
-# hosts from stalling a request for minutes.
-_BASE_OPTS: dict[str, Any] = {
-    "noplaylist": True,
-    "skip_download": True,
-    "js_runtimes": {"node": {}},
-    "remote_components": ["ejs:github"],
-    "socket_timeout": 15,
-}
 
-# Delay (seconds) before each retry. googlevideo rate-limits a client IP with
-# HTTP 403/429 for a short while, and the very same URL starts working again
-# after a couple of seconds, so retrying is cheaper than failing the request.
-_RETRY_DELAYS = (1.0, 2.5, 5.0)
-
-
-class YoutubeScraper:
+class YoutubeScraper(BaseScraper):
     """Resolve YouTube posts into direct media URLs."""
 
-    @staticmethod
-    def _is_rate_limited(exc: BaseException) -> bool:
-        """Return ``True`` when extraction failed with a temporary HTTP limit."""
-        message = str(exc)
-        return "HTTP Error 403" in message or "HTTP Error 429" in message
-
-    async def _extract(self, url: str, fmt: str) -> dict[str, Any]:
-        """Run yt-dlp format selection for ``url`` and return the info dict.
-
-        yt-dlp is blocking, so the actual work is moved to a worker thread.
-        Temporary rate limits are retried with a growing backoff.
-        """
-        opts = {**_BASE_OPTS, "format": fmt}
-        last_error: Exception | None = None
-
-        for index, delay in enumerate((0.0, *_RETRY_DELAYS)):
-            if delay:
-                await asyncio.sleep(delay)
-            try:
-                with yt_dlp.YoutubeDL(opts) as ydl:
-                    # `download=False` still performs format selection but
-                    # writes nothing to disk: only the resolved URLs are needed.
-                    return await asyncio.to_thread(ydl.extract_info, url, download=False)
-            except Exception as exc:  # noqa: BLE001 - re-raised unless it is a rate limit
-                last_error = exc
-                if not self._is_rate_limited(exc):
-                    raise
-                logger.warning(
-                    "Rate limited while resolving %s (attempt %d): %s",
-                    url, index + 1, exc,
-                )
-
-        raise DownloadError(f"Unable to resolve {url}: {last_error}")
+    def __init__(self) -> None:
+        # YouTube needs both js_runtimes (signature challenge) and
+        # remote_components (ejs from github, keeps progressive formats).
+        super().__init__(use_js_runtimes=True, use_remote_components=True)
 
     @staticmethod
     def _has_video(fmt: dict[str, Any] | None) -> bool:
@@ -101,7 +55,7 @@ class YoutubeScraper:
         """
         info = await self._extract(url=url, fmt=format_id)
 
-        # A non merged (single) format selection puts the media URL on the top
+        # A non-merged (single) format selection puts the media URL on the top
         # level of the info dict instead of `requested_formats`.
         media_url = info.get("url")
         if not media_url:
@@ -129,10 +83,7 @@ class YoutubeScraper:
         Raises:
             DownloadError: When no video stream matches the requested quality.
         """
-        # `height<=` instead of `height=`: the exact height is not always
-        # available, which would fail the whole request.
-        fmt = f"bv*[height<={height}]+ba/b[height<={height}]"
-        info = await self._extract(url=url, fmt=fmt)
+        info = await super().resolve_streams(url=url, height=height)
 
         requested = info.get("requested_formats") or []
         if requested:
@@ -174,10 +125,3 @@ class YoutubeScraper:
         }
         with yt_dlp.YoutubeDL(opts) as ydl:
             ydl.download([url])
-
-    @staticmethod
-    async def get_post_info(url: str) -> dict:
-        """Extract raw post metadata without downloading anything."""
-        with yt_dlp.YoutubeDL(dict(_BASE_OPTS)) as ydl:
-            result = await asyncio.to_thread(ydl.extract_info, url=url)
-            return dict(result)
