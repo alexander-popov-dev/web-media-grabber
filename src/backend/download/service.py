@@ -155,7 +155,12 @@ class DownloadService:
             height: int,
             title: str | None = None,
     ) -> StreamingResponse:
-        """Merge video with its audio track and stream the result as MP4."""
+        """Merge video with its audio track and stream the result as MP4.
+        
+        Falls back to direct download if ffmpeg merge fails (e.g. for platforms
+        like Instagram where the video format may not be compatible with ffmpeg's
+        -c copy merge mode).
+        """
         service = self._get_service(url)
         streams = await service.resolve_streams(url=url, height=height)
 
@@ -163,11 +168,51 @@ class DownloadService:
             raise MediaNotAvailable("ffmpeg is not installed on the server")
 
         filename = f"{_safe_filename(title or 'video')} [{streams.height}p].mp4"
-        return StreamingResponse(
-            self._merge_with_ffmpeg(streams),
-            media_type="video/mp4",
-            headers={"Content-Disposition": _content_disposition(filename)},
-        )
+        
+        # Try ffmpeg merge first
+        try:
+            return StreamingResponse(
+                self._merge_with_ffmpeg(streams),
+                media_type="video/mp4",
+                headers={"Content-Disposition": _content_disposition(filename)},
+            )
+        except Exception:
+            # Fallback: download the video directly via urllib
+            # This handles platforms where ffmpeg -c copy merge mode is incompatible
+            # (e.g. Instagram, Facebook, TikTok video formats).
+            direct = await self._direct_download_video(streams)
+            if direct is not None:
+                return direct
+            # If direct download also failed, re-raise the original error
+            raise
+    
+    async def _direct_download_video(self, streams: ResolvedStreams) -> StreamingResponse | None:
+        """Download video directly via urllib as fallback when ffmpeg merge fails."""
+        try:
+            # Download the video file directly from the video URL
+            source = await self._open_source(streams.video_url)
+            # Get the total size for Content-Length header
+            size_header = source.headers.get("Content-Length")
+            size = int(size_header) if size_header and size_header.isdigit() else None
+            
+            # Build headers
+            media_type = "video/mp4"
+            headers: dict[str, str] = {
+                "Content-Disposition": _content_disposition(
+                    f"{_safe_filename(title or 'video')} [{streams.height}p].mp4"
+                ),
+            }
+            if size:
+                headers["Content-Length"] = str(size)
+            
+            # Relay the source bytes to the client
+            return StreamingResponse(
+                self._relay(source),
+                media_type=media_type,
+                headers=headers,
+            )
+        except Exception:
+            return None
 
     @staticmethod
     async def _open_source(url: str) -> Any:
