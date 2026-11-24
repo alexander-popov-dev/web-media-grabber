@@ -200,7 +200,7 @@ class DownloadService:
         # Fallback: download the video directly via urllib
         # This handles platforms where ffmpeg -c copy merge mode is incompatible
         # (e.g. Instagram, Facebook, TikTok video formats).
-        direct = await self._direct_download_video(streams, url)
+        direct = await self._direct_download_video(streams, url, title)
         if direct is not None:
             return direct
         # If direct download also failed, return a user-friendly error
@@ -210,7 +210,7 @@ class DownloadService:
             "the request or the format may not be supported."
         )
 
-    async def _direct_download_video(self, streams: ResolvedStreams, url: str | None = None) -> StreamingResponse | None:
+    async def _direct_download_video(self, streams: ResolvedStreams, url: str | None = None, title: str | None = None) -> StreamingResponse | None:
         """Download video directly via urllib as fallback when ffmpeg merge fails.
 
         Tries the yt-dlp resolved video URL first, then falls back to the
@@ -289,6 +289,82 @@ class DownloadService:
             except Exception as e:
                 logger.debug("_direct_download_video: %s failed: %s", label, e)
                 continue
+
+        # Last resort: use yt-dlp directly to download the video.
+        # This handles platforms like TikTok that require browser impersonation
+        # and signed URLs that urllib cannot fetch.
+        if url:
+            return await self._download_with_ytdlp(url, title or "video", streams.height)
+
+        return None
+
+    async def _download_with_ytdlp(self, url: str, title: str, height: int) -> StreamingResponse | None:
+        """Download video using yt-dlp directly to a temp file, then stream it.
+
+        This is more reliable than urllib for platforms like TikTok that require
+        browser impersonation and signed URLs.
+        """
+        import tempfile
+        import os
+        from yt_dlp import YoutubeDL
+
+        try:
+            temp_dir = tempfile.mkdtemp(prefix="mediadl_")
+            output_tmpl = os.path.join(temp_dir, "%(title)s.%(ext)s")
+
+            ydl_opts = {
+                "format": f"bv*[height<={height}]+ba/b[height<={height}]",
+                "outtmpl": output_tmpl,
+                "quiet": True,
+                "no_warnings": True,
+                "merge_output_format": "mp4",
+            }
+
+            loop = asyncio.get_event_loop()
+
+            def _download():
+                with YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(url, download=True)
+                    return ydl.prepare_filename(info)
+
+            filename = await loop.run_in_executor(None, _download)
+
+            if filename and os.path.exists(filename):
+                file_size = os.path.getsize(filename)
+
+                async def file_iterator():
+                    try:
+                        with open(filename, "rb") as f:
+                            while True:
+                                chunk = await asyncio.to_thread(f.read, _CHUNK_SIZE)
+                                if not chunk:
+                                    break
+                                yield chunk
+                    finally:
+                        try:
+                            os.unlink(filename)
+                        except OSError:
+                            pass
+                        try:
+                            os.rmdir(temp_dir)
+                        except OSError:
+                            pass
+
+                headers: dict[str, str] = {
+                    "Content-Disposition": _content_disposition(
+                        f"{_safe_filename(title)} [{height}p].mp4"
+                    ),
+                }
+                if file_size:
+                    headers["Content-Length"] = str(file_size)
+
+                return StreamingResponse(
+                    file_iterator(),
+                    media_type="video/mp4",
+                    headers=headers,
+                )
+        except Exception as e:
+            logger.error("yt-dlp direct download failed: %s", e)
 
         return None
 

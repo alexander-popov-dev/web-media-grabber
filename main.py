@@ -37,6 +37,10 @@ async def backend():
     app = FastAPI(title="MediaDownloader", version="0.0.1")
     setup_dishka(container=get_container(), app=app)
 
+    @app.get("/health", tags=["health"])
+    async def health_check():
+        return {"status": "ok"}
+
     app.include_router(router=download_router, prefix="/api")
     app.add_exception_handler(BaseDownloadError, download_error_handler)
 
