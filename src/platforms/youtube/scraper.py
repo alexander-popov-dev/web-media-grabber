@@ -13,7 +13,7 @@ import yt_dlp
 from yt_dlp.utils import DownloadError
 
 from src.platforms.core.scraper import BaseScraper
-from src.platforms.core.schemas import ResolvedAudio, ResolvedStreams
+from src.platforms.core.schemas import Post, ResolvedAudio, ResolvedStreams
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +30,10 @@ class YoutubeScraper(BaseScraper):
             cookies_from_browser=cookies_from_browser,
             cookies_file=cookies_file,
         )
+
+    async def get_post_info(self, url: str) -> dict:
+        """Extract raw post metadata without downloading anything."""
+        return await super().get_post_info(url)
 
     @staticmethod
     def _has_video(fmt: dict[str, Any] | None) -> bool:
