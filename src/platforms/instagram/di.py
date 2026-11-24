@@ -10,10 +10,10 @@ class InstagramProvider(Provider):
     def get_scraper(self) -> GenericScraper:
         # Support cookies from browser for authenticated requests (Instagram Reels, etc.)
         # Set IG_COOKIES_BROWSER=chrome/firefox/edge in .env to enable
-        # Or use YTDLP_COOKIES_FILE for cookie file in containers
+        # Or use IG_COOKIES_FILE for cookie file in containers
         import os
         cookies_browser = os.getenv("IG_COOKIES_BROWSER")
-        cookies_file = os.getenv("YTDLP_COOKIES_FILE") or "/app/cookies_instagram.txt"
+        cookies_file = os.getenv("IG_COOKIES_FILE") or "/app/cookies/cookies_instagram.txt"
         return GenericScraper(
             cookies_from_browser=cookies_browser,
             cookies_file=cookies_file,

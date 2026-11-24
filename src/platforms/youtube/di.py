@@ -16,7 +16,7 @@ class YoutubeProvider(Provider):
         # Or use YTDLP_COOKIES_FILE for cookie file in containers
         import os
         cookies_browser = os.getenv("YT_COOKIES_BROWSER")
-        cookies_file = os.getenv("YTDLP_COOKIES_FILE") or "/app/cookies_youtube.txt"
+        cookies_file = os.getenv("YT_COOKIES_FILE") or "/app/cookies/cookies_youtube.txt"
         return YoutubeScraper(
             cookies_from_browser=cookies_browser,
             cookies_file=cookies_file,
