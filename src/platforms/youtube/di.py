@@ -11,7 +11,11 @@ backend_settings = get_backend_settings()
 class YoutubeProvider(Provider):
     @provide(scope=Scope.REQUEST)
     def get_scraper(self) -> YoutubeScraper:
-        return YoutubeScraper()
+        # Support cookies from browser for authenticated requests (YouTube Shorts, etc.)
+        # Set YT_COOKIES_BROWSER=chrome/firefox/edge in .env to enable
+        import os
+        cookies_browser = os.getenv("YT_COOKIES_BROWSER")
+        return YoutubeScraper(cookies_from_browser=cookies_browser)
 
     @provide(scope=Scope.REQUEST)
     def get_parser(self) -> YoutubeParser:

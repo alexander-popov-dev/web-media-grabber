@@ -7,7 +7,7 @@ timeouts so unreachable hosts do not stall requests for minutes.
 
 import asyncio
 import logging
-from typing import Any
+from typing import Any, Optional
 
 import yt_dlp
 from yt_dlp.utils import DownloadError
@@ -32,15 +32,20 @@ class BaseScraper:
         Load remote yt-dlp components (e.g. ``ejs:github``). Required for
         YouTube to keep progressive formats; disabled by default for other
         platforms to avoid an extra network hop to GitHub.
+    cookies_from_browser:
+        Browser name to extract cookies from (e.g., "chrome", "firefox", "edge").
+        Used for authenticated requests (YouTube Shorts, Facebook Reels, etc.).
     """
 
     def __init__(
         self,
         use_js_runtimes: bool = True,
         use_remote_components: bool = False,
+        cookies_from_browser: Optional[str] = None,
     ) -> None:
         self._use_js_runtimes = use_js_runtimes
         self._use_remote_components = use_remote_components
+        self._cookies_from_browser = cookies_from_browser
 
     @property
     def _base_opts(self) -> dict[str, Any]:
@@ -54,6 +59,8 @@ class BaseScraper:
             opts["js_runtimes"] = {"node": {}}
         if self._use_remote_components:
             opts["remote_components"] = ["ejs:github"]
+        if self._cookies_from_browser:
+            opts["cookies_from_browser"] = self._cookies_from_browser
         return opts
 
     @staticmethod
