@@ -1,5 +1,5 @@
 services:
-  # Backend API
+  # Backend API (FastAPI + yt-dlp)
   backend:
     build:
       context: ..
@@ -10,85 +10,19 @@ services:
     volumes:
       - media:/app/media
     networks:
-      - internal
       - traefik-public
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.backend.rule=Host(`${BACKEND_HOST}`)"
       - "traefik.http.routers.backend.tls.certresolver=le"
       - "traefik.http.services.backend.loadbalancer.server.port=${BACKEND_PORT}"
-      - "traefik.http.routers.backend.middlewares=backend-redirect"
-      - "traefik.http.middlewares.backend-redirect.redirectregex.regex=^(.*)$$"
-      - "traefik.http.middlewares.backend-redirect.redirectregex.replacement=https://${BACKEND_HOST}$$1"
-    depends_on:
-      redis:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
 
-  # Admin Bot
-  admin-bot:
-    profiles: [bots]
-    build:
-      context: ..
-      dockerfile: deploy/bots.Dockerfile
-    command: ["python", "-m", "bots.admin"]
-    restart: always
-    env_file:
-      - ../.env
-    depends_on:
-      redis:
-        condition: service_healthy
-    networks:
-      - internal
-      - traefik-public
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.admin-bot.rule=Host(`${BACKEND_HOST}`) && PathPrefix(`/webhook/admin`)"
-      - "traefik.http.routers.admin-bot.tls.certresolver=le"
-      - "traefik.http.services.admin-bot.loadbalancer.server.port=${ADMIN_BOT_PORT}"
-
-  # PostgreSQL
-  postgres:
-    image: postgres:16-alpine
-    restart: always
-    env_file:
-      - ../.env
-    volumes:
-      - volume-postgres:/var/lib/postgresql/data
-    networks:
-      - internal
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Redis
-  redis:
-    image: redis:7-alpine
-    restart: always
-    env_file:
-      - ../.env
-    volumes:
-      - volume-redis:/data
-    networks:
-      - internal
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # Frontend (static files served by backend)
+  # Already served by backend via StaticFiles mount at "/"
 
 volumes:
-  volume-postgres:
-  volume-redis:
-  frontend_dist:
-  certbot-webroot:
   media:
 
 networks:
-  internal:
-    driver: bridge
   traefik-public:
     external: true
