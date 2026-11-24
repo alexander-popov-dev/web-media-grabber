@@ -13,7 +13,7 @@ services:
       - traefik-public
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.media-grabber-backend.rule=Host(`${BACKEND_HOST}`)"
+      - "traefik.http.routers.media-grabber-backend.rule=Host(`${EXTERNAL_HOST}`)"
       - "traefik.http.routers.media-grabber-backend.tls.certresolver=le"
       - "traefik.http.services.media-grabber-backend.loadbalancer.server.port=${BACKEND_PORT}"
 
