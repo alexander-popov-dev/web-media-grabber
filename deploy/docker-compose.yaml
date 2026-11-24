@@ -9,11 +9,7 @@ services:
       - ../.env
     volumes:
       - media:/app/media
-      - ./cookies.txt:/app/cookies.txt
-      - ./cookies_youtube.txt:/app/cookies_youtube.txt
-      - ./cookies_facebook.txt:/app/cookies_facebook.txt
-      - ./cookies_instagram.txt:/app/cookies_instagram.txt
-      - ./cookies_tiktok.txt:/app/cookies_tiktok.txt
+      - cookies:/app/cookies
     networks:
       - traefik-public
     labels:
@@ -27,6 +23,7 @@ services:
 
 volumes:
   media:
+  cookies:
 
 networks:
   traefik-public:

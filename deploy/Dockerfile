@@ -46,9 +46,17 @@ COPY --from=builder --chown=app:app /app/.venv .venv
 # Copy application code
 COPY --chown=app:app . .
 
-# Create cookies.txt with proper permissions for app user
-RUN touch /app/cookies.txt /app/cookies_youtube.txt /app/cookies_facebook.txt /app/cookies_instagram.txt /app/cookies_tiktok.txt && \
-    chown app:app /app/cookies*.txt
+# Create cookies directory with proper permissions for app user
+# Also create symlinks at /app/cookies_*.txt pointing to /app/cookies/cookies_*.txt
+# so that providers can find them at the expected paths
+RUN mkdir -p /app/cookies && \
+    touch /app/cookies/cookies.txt /app/cookies/cookies_youtube.txt /app/cookies/cookies_facebook.txt /app/cookies/cookies_instagram.txt /app/cookies/cookies_tiktok.txt && \
+    ln -sf /app/cookies/cookies.txt /app/cookies.txt && \
+    ln -sf /app/cookies/cookies_youtube.txt /app/cookies_youtube.txt && \
+    ln -sf /app/cookies/cookies_facebook.txt /app/cookies_facebook.txt && \
+    ln -sf /app/cookies/cookies_instagram.txt /app/cookies_instagram.txt && \
+    ln -sf /app/cookies/cookies_tiktok.txt /app/cookies_tiktok.txt && \
+    chown -R app:app /app/cookies /app/cookies.txt /app/cookies_youtube.txt /app/cookies_facebook.txt /app/cookies_instagram.txt /app/cookies_tiktok.txt
 
 # Switch to non-root user
 USER app
@@ -59,8 +67,8 @@ ENV PATH="/app/.venv/bin:${PATH}"
 # yt-dlp configuration
 # Use deno for JavaScript runtime (YouTube signature challenges)
 ENV YTDLP_JS_RUNTIME=deno
-# Cookies file path (auto-refreshed by Playwright)
-ENV YTDLP_COOKIES_FILE=/app/cookies.txt
+# Cookies file path (auto-refreshed by Playwright) - points to directory
+ENV YTDLP_COOKIES_FILE=/app/cookies
 
 EXPOSE 80
 
