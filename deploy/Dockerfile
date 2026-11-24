@@ -24,6 +24,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    curl \
+    ca-certificates \
+    unzip \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install Node.js for Playwright
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
@@ -33,6 +41,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 RUN npm install -g playwright \
     && npx playwright install chromium \
     && npx playwright install-deps chromium
+
+# Install Playwright Python package (fallback if not in uv.lock)
+RUN pip install playwright==1.40.0
 
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash app
