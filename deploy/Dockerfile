@@ -24,9 +24,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install deno (recommended by yt-dlp for JS runtime)
-RUN curl -fsSL https://deno.land/install.sh | sh -s v2.1.4
-ENV PATH="/root/.deno/bin:${PATH}"
+# Install Node.js for Playwright
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Playwright + Chromium
+RUN npm install -g playwright \
+    && npx playwright install chromium \
+    && npx playwright install-deps chromium
 
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash app
@@ -49,7 +55,7 @@ ENV PATH="/app/.venv/bin:${PATH}"
 # yt-dlp configuration
 # Use deno for JavaScript runtime (YouTube signature challenges)
 ENV YTDLP_JS_RUNTIME=deno
-# Cookies file path (mount your cookies.txt to /app/cookies.txt)
+# Cookies file path (auto-refreshed by Playwright)
 ENV YTDLP_COOKIES_FILE=/app/cookies.txt
 
 EXPOSE 80
