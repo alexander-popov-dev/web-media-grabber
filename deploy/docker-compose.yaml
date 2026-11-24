@@ -10,6 +10,9 @@ services:
     volumes:
       - media:/app/media
       - cookies:/app/cookies
+      # Cookie files are created inside the container by the application
+      # when cookies are extracted via Playwright. They are stored in the
+      # named 'cookies' volume at /app/cookies/
     networks:
       - traefik-public
     labels:

@@ -47,16 +47,7 @@ COPY --from=builder --chown=app:app /app/.venv .venv
 COPY --chown=app:app . .
 
 # Create cookies directory with proper permissions for app user
-# Also create symlinks at /app/cookies_*.txt pointing to /app/cookies/cookies_*.txt
-# so that providers can find them at the expected paths
-RUN mkdir -p /app/cookies && \
-    touch /app/cookies/cookies.txt /app/cookies/cookies_youtube.txt /app/cookies/cookies_facebook.txt /app/cookies/cookies_instagram.txt /app/cookies/cookies_tiktok.txt && \
-    ln -sf /app/cookies/cookies.txt /app/cookies.txt && \
-    ln -sf /app/cookies/cookies_youtube.txt /app/cookies_youtube.txt && \
-    ln -sf /app/cookies/cookies_facebook.txt /app/cookies_facebook.txt && \
-    ln -sf /app/cookies/cookies_instagram.txt /app/cookies_instagram.txt && \
-    ln -sf /app/cookies/cookies_tiktok.txt /app/cookies_tiktok.txt && \
-    chown -R app:app /app/cookies /app/cookies.txt /app/cookies_youtube.txt /app/cookies_facebook.txt /app/cookies_instagram.txt /app/cookies_tiktok.txt
+RUN mkdir -p /app/cookies && chown -R app:app /app/cookies
 
 # Switch to non-root user
 USER app

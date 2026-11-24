@@ -69,7 +69,12 @@ class BaseScraper:
         if self._cookies_from_browser:
             opts["cookies_from_browser"] = self._cookies_from_browser
         if self._cookies_file:
-            opts["cookiefile"] = self._cookies_file
+            # Only use cookie file if it exists and has valid cookies
+            path = Path(self._cookies_file)
+            if path.exists():
+                content = path.read_text(encoding="utf-8")
+                if len(content.splitlines()) > 1:
+                    opts["cookiefile"] = self._cookies_file
         return opts
 
     @staticmethod
