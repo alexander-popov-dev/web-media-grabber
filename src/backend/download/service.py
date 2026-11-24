@@ -191,15 +191,24 @@ class DownloadService:
                 media_type="video/mp4",
                 headers={"Content-Disposition": _content_disposition(filename)},
             )
+        except MediaNotAvailable:
+            # ffmpeg failed: fall through to direct download below.
+            pass
         except Exception:
-            # Fallback: download the video directly via urllib
-            # This handles platforms where ffmpeg -c copy merge mode is incompatible
-            # (e.g. Instagram, Facebook, TikTok video formats).
-            direct = await self._direct_download_video(streams, url)
-            if direct is not None:
-                return direct
-            # If direct download also failed, re-raise the original error
-            raise
+            # Unexpected ffmpeg error: log it but don't leak details to user.
+            logger.exception("ffmpeg merge failed unexpectedly")
+        # Fallback: download the video directly via urllib
+        # This handles platforms where ffmpeg -c copy merge mode is incompatible
+        # (e.g. Instagram, Facebook, TikTok video formats).
+        direct = await self._direct_download_video(streams, url)
+        if direct is not None:
+            return direct
+        # If direct download also failed, return a user-friendly error
+        # (don't leak raw ffmpeg/CDN error details to the client).
+        raise MediaNotAvailable(
+            "Unable to download this video. The media host may be blocking "
+            "the request or the format may not be supported."
+        )
 
     async def _direct_download_video(self, streams: ResolvedStreams, url: str | None = None) -> StreamingResponse | None:
         """Download video directly via urllib as fallback when ffmpeg merge fails.
@@ -298,19 +307,23 @@ class DownloadService:
         for index, delay in enumerate((0.0, *_RETRY_DELAYS)):
             if delay:
                 await asyncio.sleep(delay)
-            # A ranged request is required: without `Range` the media host
-            # throttles the stream to a few dozen kB/s, while `bytes=0-` is
-            # answered at full speed and still reports the total size.
-            headers = {"User-Agent": _USER_AGENT, "Range": "bytes=0-"}
-            # Add Referer for media CDN hosts that require it
+            # Build headers: browser-like UA, Range for full-speed response,
+            # Accept/Accept-Language so CDNs don't serve HTML error pages.
+            headers = {
+                "User-Agent": _USER_AGENT,
+                "Range": "bytes=0-",
+                "Accept": "*/*",
+                "Accept-Language": "en-US,en;q=0.9",
+            }
+            # Add Referer (+Origin) for media CDN hosts that require it.
+            # Without Referer, Instagram/TikTok CDNs return HTML consent pages
+            # instead of video; without Origin, some hosts reject the request.
             for domain, referer in _CDN_REFERERS.items():
                 if domain in url:
                     headers["Referer"] = referer
+                    headers["Origin"] = referer
                     break
-            request = urllib.request.Request(
-                url,
-                headers=headers,
-            )
+            request = urllib.request.Request(url, headers=headers)
             try:
                 return await asyncio.to_thread(
                     urllib.request.urlopen, request, timeout=60,
@@ -318,6 +331,19 @@ class DownloadService:
             except urllib.error.HTTPError as exc:
                 exc.close()
                 last_error = exc
+                # Some CDNs (TikTok) reject Range requests with 403.
+                # Retry once without Range to see if the host serves the file.
+                if exc.code == 403 and "Range" in headers:
+                    request_norange = urllib.request.Request(
+                        url,
+                        headers={k: v for k, v in headers.items() if k != "Range"},
+                    )
+                    try:
+                        return await asyncio.to_thread(
+                            urllib.request.urlopen, request_norange, timeout=60,
+                        )
+                    except Exception:
+                        pass
                 if exc.code not in (403, 429):
                     raise MediaNotAvailable(f"Upstream host answered HTTP {exc.code}") from exc
                 logger.warning(
@@ -329,7 +355,7 @@ class DownloadService:
                     "Cannot open the media host (attempt %d): %s", index + 1, exc,
                 )
 
-        raise MediaNotAvailable(f"Upstream host refused the media request: {last_error}")
+        raise MediaNotAvailable("Upstream host refused the media request")
 
     @staticmethod
     async def _relay(source: Any) -> AsyncIterator[bytes]:
