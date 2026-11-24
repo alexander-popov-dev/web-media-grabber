@@ -7,9 +7,7 @@ timeouts so unreachable hosts do not stall requests for minutes.
 
 import asyncio
 import logging
-import os
-from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yt_dlp
 from yt_dlp.utils import DownloadError
@@ -28,31 +26,21 @@ class BaseScraper:
     Parameters
     ----------
     use_js_runtimes:
-        Enable the JavaScript runtime for solving YouTube's signature challenge.
+        Enable the Node.js runtime for solving YouTube's signature challenge.
         Required for YouTube; harmless but unnecessary for most other platforms.
     use_remote_components:
         Load remote yt-dlp components (e.g. ``ejs:github``). Required for
         YouTube to keep progressive formats; disabled by default for other
         platforms to avoid an extra network hop to GitHub.
-    cookies_from_browser:
-        Browser name to extract cookies from (e.g., "chrome", "firefox", "edge").
-        Used for authenticated requests (YouTube Shorts, Facebook Reels, etc.).
-    cookies_file:
-        Path to cookies file in Netscape format (e.g., /app/cookies.txt).
-        Used when no browser is available (containers).
     """
 
     def __init__(
         self,
         use_js_runtimes: bool = True,
         use_remote_components: bool = False,
-        cookies_from_browser: Optional[str] = None,
-        cookies_file: Optional[str] = None,
     ) -> None:
         self._use_js_runtimes = use_js_runtimes
         self._use_remote_components = use_remote_components
-        self._cookies_from_browser = cookies_from_browser
-        self._cookies_file = cookies_file or os.getenv("YTDLP_COOKIES_FILE")
 
     @property
     def _base_opts(self) -> dict[str, Any]:
@@ -63,19 +51,9 @@ class BaseScraper:
             "socket_timeout": 15,
         }
         if self._use_js_runtimes:
-            # Use deno for JavaScript runtime (recommended by yt-dlp)
-            opts["js_runtimes"] = {"deno": {}}
+            opts["js_runtimes"] = {"node": {}}
         if self._use_remote_components:
             opts["remote_components"] = ["ejs:github"]
-        if self._cookies_from_browser:
-            opts["cookies_from_browser"] = self._cookies_from_browser
-        if self._cookies_file:
-            # Only use cookie file if it exists and has valid cookies
-            path = Path(self._cookies_file)
-            if path.exists():
-                content = path.read_text(encoding="utf-8")
-                if len(content.splitlines()) > 1:
-                    opts["cookiefile"] = self._cookies_file
         return opts
 
     @staticmethod
@@ -112,13 +90,6 @@ class BaseScraper:
 
         raise DownloadError(f"Unable to resolve {url}: {last_error}")
 
-    async def get_post_info(self, url: str) -> dict:
-        """Extract raw post metadata without downloading anything."""
-        opts = self._base_opts
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            result = await asyncio.to_thread(ydl.extract_info, url, download=False)
-            return dict(result)
-
     async def resolve_audio(self, url: str, format_id: str) -> dict[str, Any]:
         """Resolve a single audio format to its direct media URL.
 
@@ -141,3 +112,9 @@ class BaseScraper:
         # available, which would fail the whole request.
         fmt = f"bv*[height<={height}]+ba/b[height<={height}]"
         return await self._extract(url=url, fmt=fmt)
+
+    async def get_post_info(self, url: str) -> dict:
+        """Extract raw post metadata without downloading anything."""
+        with yt_dlp.YoutubeDL(dict(self._base_opts)) as ydl:
+            result = await asyncio.to_thread(ydl.extract_info, url=url)
+            return dict(result)
