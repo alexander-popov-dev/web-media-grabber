@@ -46,6 +46,10 @@ COPY --from=builder --chown=app:app /app/.venv .venv
 # Copy application code
 COPY --chown=app:app . .
 
+# Create cookies.txt with proper permissions for app user
+RUN touch /app/cookies.txt /app/cookies_youtube.txt /app/cookies_facebook.txt /app/cookies_instagram.txt /app/cookies_tiktok.txt && \
+    chown app:app /app/cookies*.txt
+
 # Switch to non-root user
 USER app
 
