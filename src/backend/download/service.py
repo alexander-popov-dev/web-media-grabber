@@ -314,6 +314,10 @@ class DownloadService:
                 "Range": "bytes=0-",
                 "Accept": "*/*",
                 "Accept-Language": "en-US,en;q=0.9",
+                # Sec-Fetch headers help bypass CDN bot detection (TikTok, etc.)
+                "Sec-Fetch-Dest": "video",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "cross-site",
             }
             # Add Referer (+Origin) for media CDN hosts that require it.
             # Without Referer, Instagram/TikTok CDNs return HTML consent pages

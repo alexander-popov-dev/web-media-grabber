@@ -51,13 +51,8 @@ class BaseParser:
         if duration and fmt.get("tbr"):
             # tbr in kbit/s -> bytes = kbit * 1000 / 8 * seconds
             return fmt["tbr"] * 1000 * duration / 8
-        # If we have tbr but no duration, estimate using a default duration.
-        # Short-form content (Reels, TikTok, Shorts) is typically 15-60s;
-        # 30s is a more accurate estimate than 120s which overestimates 4x.
-        if fmt.get("tbr") and not duration:
-            DEFAULT_DURATION = 30
-            return fmt["tbr"] * 1000 * DEFAULT_DURATION / 8
-        # If all else fails, return 0 (UI will show "—").
+        # If we have tbr but no duration, do not guess — return 0 so the UI
+        # shows "—" instead of a potentially wrong estimate.
         return 0
 
     @staticmethod
