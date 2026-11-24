@@ -3,8 +3,10 @@
 The service turns resolved platform links into HTTP streams: audio bytes are
 relayed from the upstream host, while video is stitched on the fly with ffmpeg
 and pushed to the client as a fragmented MP4.
-"""
 
+It is platform-agnostic: it holds all registered platform services and
+dispatches each request to the one whose ``PLATFORM`` marker matches the URL.
+"""
 import asyncio
 import contextlib
 import logging
@@ -23,7 +25,7 @@ from starlette.responses import StreamingResponse
 from src.backend.download.exceptions import MediaNotAvailable, PlatformNotSupported
 from src.backend.download.schemas import DownloadRequest, DownloadResponse
 from src.platforms.core.schemas import ResolvedAudio, ResolvedStreams
-from src.platforms.youtube.service import YoutubeService
+from src.platforms.core.service import PlatformService
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +37,15 @@ _USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
 )
+
+# Referer header for media CDN hosts that require it (Instagram, Facebook, TikTok).
+# Without it, Instagram CDN returns an HTML consent/login page instead of video.
+_CDN_REFERERS = {
+    "fbcdn.net": "https://www.instagram.com/",
+    "instagram.com": "https://www.instagram.com/",
+    "facebook.com": "https://www.facebook.com/",
+    "tiktok.com": "https://www.tiktok.com/",
+}
 
 # Delay (seconds) before each retry against the upstream media host, which
 # answers with a temporary HTTP 403 while rate-limiting a client IP.
@@ -76,9 +87,21 @@ class DownloadService:
 
     def __init__(
             self,
-            youtube_service: YoutubeService
+            services: list[PlatformService]
     ) -> None:
-        self._youtube_service = youtube_service
+        self._services = {service.PLATFORM: service for service in services}
+
+    def _get_service(self, url: str) -> PlatformService:
+        """Pick the platform service whose marker appears in the URL.
+
+        Raises:
+            PlatformNotSupported: When no known platform marker is present.
+        """
+        lowered = url.lower()
+        for platform, service in self._services.items():
+            if platform in lowered:
+                return service
+        raise PlatformNotSupported(f"Unsupported platform for url: {url}")
 
     async def get_download_url(self, request: DownloadRequest) -> DownloadResponse:
         """Fetch and parse metadata of the given post.
@@ -88,23 +111,14 @@ class DownloadService:
                 this server knows how to handle.
             MediaNotAvailable: When the upstream host cannot be extracted.
         """
-        self._ensure_supported(request.url)
+        service = self._get_service(request.url)
 
         try:
-            post = await self._youtube_service.get_post_info(url=request.url)
+            post = await service.get_post_info(url=request.url)
         except Exception as exc:  # noqa: BLE001 - reported to the client as a 5xx
             raise MediaNotAvailable(f"Unable to extract media info: {exc}") from exc
 
         return DownloadResponse(post=post)
-
-    def _ensure_supported(self, url: str) -> None:
-        """Reject URLs that do not belong to a platform this server supports.
-
-        Raises:
-            PlatformNotSupported: When no known platform marker is present.
-        """
-        if self._youtube_service.PLATFORM not in url:
-            raise PlatformNotSupported(f"Unsupported platform for url: {url}")
 
     async def stream_audio(
             self,
@@ -117,8 +131,8 @@ class DownloadService:
         The upstream connection is opened *before* the response is created so
         that rate limits can still be retried with a proper HTTP status code.
         """
-        self._ensure_supported(url)
-        resolved = await self._resolve_audio(url=url, format_id=format_id)
+        service = self._get_service(url)
+        resolved = await service.resolve_audio(url=url, format_id=format_id)
         source = await self._open_source(resolved.url)
 
         media_type = source.headers.get("Content-Type", "").split(";")[0].strip()
@@ -149,33 +163,210 @@ class DownloadService:
             height: int,
             title: str | None = None,
     ) -> StreamingResponse:
-        """Merge video with its audio track and stream the result as MP4."""
-        self._ensure_supported(url)
-        streams = await self._resolve_streams(url=url, height=height)
+        """Merge video with its audio track and stream the result as MP4.
+
+        Falls back to direct download if ffmpeg merge fails (e.g. for platforms
+        like Instagram where the video format may not be compatible with ffmpeg's
+        -c copy merge mode).
+        """
+        service = self._get_service(url)
+        streams = await service.resolve_streams(url=url, height=height)
 
         if shutil.which("ffmpeg") is None:
             raise MediaNotAvailable("ffmpeg is not installed on the server")
 
         filename = f"{_safe_filename(title or 'video')} [{streams.height}p].mp4"
-        return StreamingResponse(
-            self._merge_with_ffmpeg(streams),
-            media_type="video/mp4",
-            headers={"Content-Disposition": _content_disposition(filename)},
+
+        # Try ffmpeg merge first
+        try:
+            # Check ffmpeg return code before creating the response;
+            # this ensures the exception propagates to the except block below.
+            merged = self._merge_with_ffmpeg(streams)
+            # Consume the generator to trigger ffmpeg execution and check return code
+            async for _ in merged:
+                pass
+            # If we get here, ffmpeg succeeded - create the response
+            return StreamingResponse(
+                self._merge_with_ffmpeg(streams),
+                media_type="video/mp4",
+                headers={"Content-Disposition": _content_disposition(filename)},
+            )
+        except MediaNotAvailable:
+            # ffmpeg failed: fall through to direct download below.
+            pass
+        except Exception:
+            # Unexpected ffmpeg error: log it but don't leak details to user.
+            logger.exception("ffmpeg merge failed unexpectedly")
+        # Fallback: download the video directly via urllib
+        # This handles platforms where ffmpeg -c copy merge mode is incompatible
+        # (e.g. Instagram, Facebook, TikTok video formats).
+        direct = await self._direct_download_video(streams, url, title)
+        if direct is not None:
+            return direct
+        # If direct download also failed, return a user-friendly error
+        # (don't leak raw ffmpeg/CDN error details to the client).
+        raise MediaNotAvailable(
+            "Unable to download this video. The media host may be blocking "
+            "the request or the format may not be supported."
         )
 
-    async def _resolve_audio(self, url: str, format_id: str) -> ResolvedAudio:
-        """Ask the platform layer for a direct audio URL."""
-        try:
-            return await self._youtube_service.resolve_audio(url=url, format_id=format_id)
-        except Exception as exc:  # noqa: BLE001 - reported to the client as a 5xx
-            raise MediaNotAvailable(f"Unable to resolve audio format: {exc}") from exc
+    async def _direct_download_video(self, streams: ResolvedStreams, url: str | None = None, title: str | None = None) -> StreamingResponse | None:
+        """Download video directly via urllib as fallback when ffmpeg merge fails.
 
-    async def _resolve_streams(self, url: str, height: int) -> ResolvedStreams:
-        """Ask the platform layer for the video/audio pair of a quality."""
+        Tries the yt-dlp resolved video URL first, then falls back to the
+        original platform URL if the resolved URL fails.
+
+        Validates that the downloaded content is actually video (not HTML or
+        other non-media content) before returning it to the client.
+        """
+        candidates = []
+        if streams and streams.video_url:
+            candidates.append(("resolved video URL", streams.video_url))
+        if url:
+            candidates.append(("original platform URL", url))
+
+        for label, candidate_url in candidates:
+            try:
+                source = await self._open_source(candidate_url)
+                content_type = source.headers.get("Content-Type", "").split(";")[0].strip()
+
+                # Reject non-media content (HTML, error pages, etc.)
+                if not content_type.startswith(("video/", "audio/")):
+                    source.close()
+                    logger.warning(
+                        "_direct_download_video: %s returned non-media content-type: %s",
+                        label, content_type,
+                    )
+                    continue
+
+                # Read a small chunk to verify it's not HTML
+                first_chunk = await asyncio.to_thread(source.read, 32)
+                if first_chunk.startswith(b"<!DOCTYPE") or first_chunk.lstrip().startswith(b"<html"):
+                    source.close()
+                    logger.warning(
+                        "_direct_download_video: %s returned HTML instead of video",
+                        label,
+                    )
+                    continue
+
+                # Re-wrap the source so we can replay the first chunk
+                class _PrefixedSource:
+                    def __init__(self, src, prefix):
+                        self._src = src
+                        self._prefix = prefix
+                        self._prefix_sent = False
+
+                    async def read(self, n):
+                        if not self._prefix_sent:
+                            self._prefix_sent = True
+                            return self._prefix + (await asyncio.to_thread(self._src.read, max(0, n - len(self._prefix))))
+                        return await asyncio.to_thread(self._src.read, n)
+
+                    def close(self):
+                        self._src.close()
+
+                    @property
+                    def headers(self):
+                        return self._src.headers
+
+                prefixed = _PrefixedSource(source, first_chunk)
+                size_header = source.headers.get("Content-Length")
+                size = int(size_header) if size_header and size_header.isdigit() else None
+
+                headers: dict[str, str] = {
+                    "Content-Disposition": _content_disposition(
+                        f"{_safe_filename('video')} [{streams.height}p].mp4"
+                    ),
+                }
+                if size:
+                    headers["Content-Length"] = str(size)
+
+                return StreamingResponse(
+                    self._relay(prefixed),
+                    media_type="video/mp4",
+                    headers=headers,
+                )
+            except Exception as e:
+                logger.debug("_direct_download_video: %s failed: %s", label, e)
+                continue
+
+        # Last resort: use yt-dlp directly to download the video.
+        # This handles platforms like TikTok that require browser impersonation
+        # and signed URLs that urllib cannot fetch.
+        if url:
+            return await self._download_with_ytdlp(url, title or "video", streams.height)
+
+        return None
+
+    async def _download_with_ytdlp(self, url: str, title: str, height: int) -> StreamingResponse | None:
+        """Download video using yt-dlp directly to a temp file, then stream it.
+
+        This is more reliable than urllib for platforms like TikTok that require
+        browser impersonation and signed URLs.
+        """
+        import tempfile
+        import os
+        from yt_dlp import YoutubeDL
+
         try:
-            return await self._youtube_service.resolve_streams(url=url, height=height)
-        except Exception as exc:  # noqa: BLE001 - reported to the client as a 5xx
-            raise MediaNotAvailable(f"Unable to resolve video format: {exc}") from exc
+            temp_dir = tempfile.mkdtemp(prefix="mediadl_")
+            output_tmpl = os.path.join(temp_dir, "%(title)s.%(ext)s")
+
+            ydl_opts = {
+                "format": f"bv*[height<={height}]+ba/b[height<={height}]",
+                "outtmpl": output_tmpl,
+                "quiet": True,
+                "no_warnings": True,
+                "merge_output_format": "mp4",
+            }
+
+            loop = asyncio.get_event_loop()
+
+            def _download():
+                with YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(url, download=True)
+                    return ydl.prepare_filename(info)
+
+            filename = await loop.run_in_executor(None, _download)
+
+            if filename and os.path.exists(filename):
+                file_size = os.path.getsize(filename)
+
+                async def file_iterator():
+                    try:
+                        with open(filename, "rb") as f:
+                            while True:
+                                chunk = await asyncio.to_thread(f.read, _CHUNK_SIZE)
+                                if not chunk:
+                                    break
+                                yield chunk
+                    finally:
+                        try:
+                            os.unlink(filename)
+                        except OSError:
+                            pass
+                        try:
+                            os.rmdir(temp_dir)
+                        except OSError:
+                            pass
+
+                headers: dict[str, str] = {
+                    "Content-Disposition": _content_disposition(
+                        f"{_safe_filename(title)} [{height}p].mp4"
+                    ),
+                }
+                if file_size:
+                    headers["Content-Length"] = str(file_size)
+
+                return StreamingResponse(
+                    file_iterator(),
+                    media_type="video/mp4",
+                    headers=headers,
+                )
+        except Exception as e:
+            logger.error("yt-dlp direct download failed: %s", e)
+
+        return None
 
     @staticmethod
     async def _open_source(url: str) -> Any:
@@ -192,13 +383,27 @@ class DownloadService:
         for index, delay in enumerate((0.0, *_RETRY_DELAYS)):
             if delay:
                 await asyncio.sleep(delay)
-            # A ranged request is required: without `Range` the media host
-            # throttles the stream to a few dozen kB/s, while `bytes=0-` is
-            # answered at full speed and still reports the total size.
-            request = urllib.request.Request(
-                url,
-                headers={"User-Agent": _USER_AGENT, "Range": "bytes=0-"},
-            )
+            # Build headers: browser-like UA, Range for full-speed response,
+            # Accept/Accept-Language so CDNs don't serve HTML error pages.
+            headers = {
+                "User-Agent": _USER_AGENT,
+                "Range": "bytes=0-",
+                "Accept": "*/*",
+                "Accept-Language": "en-US,en;q=0.9",
+                # Sec-Fetch headers help bypass CDN bot detection (TikTok, etc.)
+                "Sec-Fetch-Dest": "video",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "cross-site",
+            }
+            # Add Referer (+Origin) for media CDN hosts that require it.
+            # Without Referer, Instagram/TikTok CDNs return HTML consent pages
+            # instead of video; without Origin, some hosts reject the request.
+            for domain, referer in _CDN_REFERERS.items():
+                if domain in url:
+                    headers["Referer"] = referer
+                    headers["Origin"] = referer
+                    break
+            request = urllib.request.Request(url, headers=headers)
             try:
                 return await asyncio.to_thread(
                     urllib.request.urlopen, request, timeout=60,
@@ -206,6 +411,19 @@ class DownloadService:
             except urllib.error.HTTPError as exc:
                 exc.close()
                 last_error = exc
+                # Some CDNs (TikTok) reject Range requests with 403.
+                # Retry once without Range to see if the host serves the file.
+                if exc.code == 403 and "Range" in headers:
+                    request_norange = urllib.request.Request(
+                        url,
+                        headers={k: v for k, v in headers.items() if k != "Range"},
+                    )
+                    try:
+                        return await asyncio.to_thread(
+                            urllib.request.urlopen, request_norange, timeout=60,
+                        )
+                    except Exception:
+                        pass
                 if exc.code not in (403, 429):
                     raise MediaNotAvailable(f"Upstream host answered HTTP {exc.code}") from exc
                 logger.warning(
@@ -217,7 +435,7 @@ class DownloadService:
                     "Cannot open the media host (attempt %d): %s", index + 1, exc,
                 )
 
-        raise MediaNotAvailable(f"Upstream host refused the media request: {last_error}")
+        raise MediaNotAvailable("Upstream host refused the media request")
 
     @staticmethod
     async def _relay(source: Any) -> AsyncIterator[bytes]:
@@ -285,8 +503,7 @@ class DownloadService:
             returncode = await process.wait()
             stderr = (await stderr_task).decode(errors="replace").strip()
             if returncode != 0:
-                # Headers are already sent, so the failure can only be logged.
-                logger.error("ffmpeg exited with code %d: %s", returncode, stderr)
+                raise MediaNotAvailable(f"ffmpeg exited with code {returncode}: {stderr}")
         finally:
             if process.returncode is None:
                 # Client disconnected or the stream failed: stop ffmpeg.

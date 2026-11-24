@@ -1,22 +1,29 @@
 # MediaDownloader
 
-MediaDownloader is a FastAPI backend + vanilla-JS frontend that extracts media from YouTube
-links and streams the files **through the server** to the browser. Audio is relayed byte-for-byte;
-video is merged (video-only DASH + audio) with ffmpeg on the fly and served as a fragmented MP4,
-so the browser always receives a single playable file with a proper `Content-Disposition: attachment`
-header.
+MediaDownloader is a FastAPI backend + vanilla-JS frontend that extracts media from YouTube,
+Facebook, Instagram and TikTok links and streams the files **through the server** to the browser.
+Audio is relayed byte-for-byte; video is merged (video-only DASH + audio) with ffmpeg on the fly
+and served as a fragmented MP4, so the browser always receives a single playable file with a proper
+`Content-Disposition: attachment` header.
+
+## Supported platforms
+
+- **YouTube** — full metadata + video/audio format lists, server-side ffmpeg merge for DASH video.
+- **Facebook** — metadata and downloadable formats via yt-dlp.
+- **Instagram** — Reels, posts and videos metadata + downloadable formats.
+- **TikTok** — video metadata + downloadable formats.
 
 ## Features
 
 - **Vanilla JS + Tailwind CDN** frontend — no build step, no framework, one `index.html`.
 - **FastAPI backend** with Dishka DI, two endpoints:
-  - `GET /api/post/get?url=<youtube-url>` — post metadata + available video/audio formats.
+  - `GET /api/post/get?url=<platform-url>` — post metadata + available video/audio formats.
   - `GET /api/post/download?url=<...>&height=<H>` — video quality `H`, merged via ffmpeg, streamed as MP4.
   - `GET /api/post/download?url=<...>&format_id=<id>` — single audio format, relayed as-is.
-- **Server-side streaming** (no `RedirectResponse`): googlevideo URLs carry `ip=` of the server,
+- **Server-side streaming** (no `RedirectResponse`): media host URLs carry `ip=` of the server,
   so a browser redirect would 403; the backend relays/merges and the client downloads from the
   same origin.
-- **Retry/backoff** on temporary googlevideo HTTP 403/429 rate limits.
+- **Retry/backoff** on temporary HTTP 403/429 rate limits from media hosts.
 - **Content-Length** passed through for audio so the browser shows real download progress.
 - English comments and docstrings throughout.
 
@@ -99,10 +106,15 @@ traceback.
 | Layer | Responsibility |
 |---|---|
 | `src/frontend/index.html` | Vanilla UI: URL input, fetch metadata, render formats, trigger download. |
-| `src/platforms/youtube/scraper.py` | yt-dlp wrapper: `resolve_audio`, `resolve_streams`, `get_post_info` with retry. |
-| `src/platforms/youtube/service.py` | Platform facade delegating to the scraper. |
-| `src/platforms/youtube/parser.py` | Turns yt-dlp info into `Post`/`Video`/`Audio` schemas (filters unsupported ext, estimates size via `tbr`). |
-| `src/backend/download/service.py` | `stream_audio` (urllib relay with `Range`) and `stream_video` (ffmpeg `-c copy` fragmented MP4 into `pipe:1`, client-disconnect kill). |
+| `src/platforms/core/scraper.py` | Base yt-dlp extraction with retry/backoff, socket timeouts, `js_runtimes`. |
+| `src/platforms/core/parser.py` | Base parser: yt-dlp info → `Post`/`Video`/`Audio` schemas, size via `tbr` fallback. |
+| `src/platforms/core/service.py` | `PlatformService` protocol + `BasePlatformService` delegation to scraper/parser. |
+| `src/platforms/youtube/scraper.py` | YouTube scraper: `js_runtimes`+`remote_components`, DASH video/audio splitting. |
+| `src/platforms/youtube/service.py` | YouTube service facade (`PLATFORM = "youtube"`). |
+| `src/platforms/youtube/parser.py` | YouTube parser: mp4/webm video, m4a/webm/mp3/aac/opus audio. |
+| `src/platforms/generic/scraper.py` | Generic scraper for Facebook/Instagram/TikTok (no remote_components). |
+| `src/platforms/{facebook,instagram,tiktok}/service.py` | Per-platform service facades (`PLATFORM` markers). |
+| `src/backend/download/service.py` | Dispatches to the right platform service; `stream_audio` (urllib relay with `Range`) and `stream_video` (ffmpeg `-c copy` fragmented MP4 into `pipe:1`, client-disconnect kill). |
 | `src/backend/download/router.py` | `/post/get` and `/post/download` (`response_model=None` because a `StreamingResponse` union is not a valid pydantic response model). |
 | `src/backend/download/exceptions.py` | `PlatformNotSupported`, `MediaNotAvailable` — mapped to JSON by the global handler in `main.py`. |
 

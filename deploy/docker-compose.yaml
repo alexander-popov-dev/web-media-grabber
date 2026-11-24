@@ -1,0 +1,28 @@
+services:
+  # Backend API (FastAPI + yt-dlp)
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    restart: always
+    env_file:
+      - ../.env
+    volumes:
+      - media:/app/media
+    networks:
+      - traefik-public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.media-grabber-backend.rule=Host(`${EXTERNAL_HOST}`)"
+      - "traefik.http.routers.media-grabber-backend.tls.certresolver=le"
+      - "traefik.http.services.media-grabber-backend.loadbalancer.server.port=${BACKEND_PORT}"
+
+  # Frontend (static files served by backend)
+  # Already served by backend via StaticFiles mount at "/"
+
+volumes:
+  media:
+
+networks:
+  traefik-public:
+    external: true
