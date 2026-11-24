@@ -61,9 +61,24 @@ class BasePlatformService:
         result = await self._scraper.resolve_streams(url=url, height=height)
         # The scraper may return a raw dict; convert to typed object.
         if isinstance(result, dict):
+            # For DASH streams (Instagram, Facebook, TikTok), the top-level
+            # ``url`` is often ``None``. The actual video/audio URLs live inside
+            # ``requested_formats``.
+            video_url = result.get("video_url") or result.get("url") or ""
+            audio_url = result.get("audio_url")
+            if not video_url and "requested_formats" in result:
+                for f in result["requested_formats"]:
+                    if f.get("vcodec") != "none" and f.get("acodec") == "none":
+                        video_url = f.get("url", "")
+                        break
+            if not audio_url and "requested_formats" in result:
+                for f in result["requested_formats"]:
+                    if f.get("acodec") != "none" and f.get("vcodec") == "none":
+                        audio_url = f.get("url")
+                        break
             return ResolvedStreams(
-                video_url=result.get("video_url", result.get("url", "")),
-                audio_url=result.get("audio_url"),
+                video_url=video_url,
+                audio_url=audio_url,
                 height=result.get("height") or height,
             )
         return result
