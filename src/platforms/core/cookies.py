@@ -30,7 +30,7 @@ async def extract_cookies(
     domain_filter: Optional[str] = None,
     wait_for: Optional[str] = None,
     timeout: int = 30000,
-) -> str:
+) -> tuple[str, bool]:
     """Extract cookies from a URL using headless Playwright (no login).
 
     Args:
@@ -40,7 +40,7 @@ async def extract_cookies(
         timeout: Timeout in milliseconds
 
     Returns:
-        Netscape format cookie string
+        Tuple of (Netscape format cookie string, bool indicating if cookies were found)
     """
     async with async_playwright() as p:
         # Launch with stealth options to avoid detection
@@ -83,15 +83,25 @@ async def extract_cookies(
 
             # Extract cookies
             cookies = await context.cookies()
+            cookies_str = cookies_to_netscape(cookies, domain_filter)
 
-            return cookies_to_netscape(cookies, domain_filter)
+            # Check if we have actual cookies (not just header)
+            has_cookies = len(cookies_str.splitlines()) > 1
+
+            return cookies_str, has_cookies
         finally:
             await browser.close()
 
 
 def save_cookies(cookies_str: str, filepath: str) -> None:
-    """Save cookies to file."""
-    Path(filepath).write_text(cookies_str, encoding="utf-8")
+    """Save cookies to file only if cookies exist (not just header)."""
+    if len(cookies_str.splitlines()) > 1:
+        Path(filepath).write_text(cookies_str, encoding="utf-8")
+    else:
+        # Remove file if it exists but has no cookies
+        path = Path(filepath)
+        if path.exists():
+            path.unlink()
 
 
 def load_cookies(filepath: str) -> str:
@@ -100,9 +110,13 @@ def load_cookies(filepath: str) -> str:
 
 
 def is_cookies_fresh(filepath: str, max_age_hours: int = 24) -> bool:
-    """Check if cookies file exists and is fresh."""
+    """Check if cookies file exists, has content, and is fresh."""
     path = Path(filepath)
     if not path.exists():
+        return False
+    # Check if file has actual cookies (not just header)
+    content = path.read_text(encoding="utf-8")
+    if len(content.splitlines()) <= 1:
         return False
     import time
     age_hours = (time.time() - path.stat().st_mtime) / 3600
@@ -115,12 +129,24 @@ async def ensure_fresh_cookies(
     domain_filter: str,
     max_age_hours: int = 24,
     force_refresh: bool = False,
-) -> str:
-    """Ensure cookies file exists and is fresh, extracting new ones if needed."""
+) -> str | None:
+    """Ensure cookies file exists and is fresh, extracting new ones if needed.
+    
+    Returns:
+        Path to cookies file if cookies were found, None otherwise.
+    """
     if not force_refresh and is_cookies_fresh(filepath):
-        return load_cookies(filepath)
+        return filepath
 
     print(f"Extracting fresh cookies for {domain_filter}...")
-    cookies = await extract_cookies(url, domain_filter=domain_filter)
-    save_cookies(cookies, filepath)
-    return cookies
+    cookies_str, has_cookies = await extract_cookies(url, domain_filter=domain_filter)
+    
+    if has_cookies:
+        save_cookies(cookies_str, filepath)
+        return filepath
+    else:
+        # No cookies found, ensure file doesn't exist
+        path = Path(filepath)
+        if path.exists():
+            path.unlink()
+        return None

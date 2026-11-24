@@ -80,19 +80,26 @@ async def refresh_cookies(
     Returns:
         Status and cookies file path
     """
-    cookies_file = f"/app/cookies_{platform}.txt"
-    cookies = await ensure_fresh_cookies(
-        filepath=f"/app/cookies_{platform}.txt",
+    cookies_file = f"/app/cookies/cookies_{platform}.txt"
+    cookies_path = await ensure_fresh_cookies(
+        filepath=f"/app/cookies/cookies_{platform}.txt",
         url=url,
         domain_filter=domain,
         force_refresh=True,
     )
-    return {
-        "status": "ok",
-        "platform": platform,
-        "cookies_file": cookies_file,
-        "cookies_length": len(cookies),
-    }
+    if cookies_path:
+        return {
+            "status": "ok",
+            "platform": platform,
+            "cookies_file": cookies_file,
+            "message": "Cookies extracted successfully",
+        }
+    else:
+        return {
+            "status": "no_cookies",
+            "platform": platform,
+            "message": "No cookies found for this domain",
+        }
 
 
 @router.get(
@@ -105,7 +112,7 @@ async def cookies_status() -> dict:
     platforms = ["youtube", "facebook", "instagram", "tiktok", "generic"]
     status_info = {}
     for platform in platforms:
-        filepath = f"/app/cookies_{platform}.txt"
+        filepath = f"/app/cookies/cookies_{platform}.txt"
         exists = os.path.exists(filepath)
         size = os.path.getsize(filepath) if exists else 0
         import time
