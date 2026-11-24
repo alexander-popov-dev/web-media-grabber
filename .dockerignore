@@ -64,5 +64,3 @@ media/
 *.mp3
 *.m4a
 
-# Lock files (copied separately)
-uv.lock
