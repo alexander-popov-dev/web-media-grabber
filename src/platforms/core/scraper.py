@@ -8,6 +8,7 @@ timeouts so unreachable hosts do not stall requests for minutes.
 import asyncio
 import logging
 import os
+from pathlib import Path
 from typing import Any, Optional
 
 import yt_dlp
