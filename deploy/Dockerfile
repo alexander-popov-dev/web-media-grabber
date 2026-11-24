@@ -41,12 +41,12 @@ USER app
 # Add .venv to PATH
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Expose port
-EXPOSE 8000
+# Expose port (BACKEND_PORT=80 in .env)
+EXPOSE 80
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:80/health || exit 1
 
 # Run the application
 CMD ["python", "main.py"]

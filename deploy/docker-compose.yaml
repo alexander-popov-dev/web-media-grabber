@@ -13,9 +13,9 @@ services:
       - traefik-public
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.media-grabber.rule=Host(`${BACKEND_HOST}`)"
-      - "traefik.http.routers.media-grabber.tls.certresolver=le"
-      - "traefik.http.services.media-grabber.loadbalancer.server.port=${BACKEND_PORT}"
+      - "traefik.http.routers.media-grabber-backend.rule=Host(`${BACKEND_HOST}`)"
+      - "traefik.http.routers.media-grabber-backend.tls.certresolver=le"
+      - "traefik.http.services.media-grabber-backend.loadbalancer.server.port=${BACKEND_PORT}"
 
   # Frontend (static files served by backend)
   # Already served by backend via StaticFiles mount at "/"
