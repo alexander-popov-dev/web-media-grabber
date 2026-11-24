@@ -7,6 +7,7 @@ timeouts so unreachable hosts do not stall requests for minutes.
 
 import asyncio
 import logging
+import os
 from typing import Any, Optional
 
 import yt_dlp
@@ -26,7 +27,7 @@ class BaseScraper:
     Parameters
     ----------
     use_js_runtimes:
-        Enable the Node.js runtime for solving YouTube's signature challenge.
+        Enable the JavaScript runtime for solving YouTube's signature challenge.
         Required for YouTube; harmless but unnecessary for most other platforms.
     use_remote_components:
         Load remote yt-dlp components (e.g. ``ejs:github``). Required for
@@ -35,6 +36,9 @@ class BaseScraper:
     cookies_from_browser:
         Browser name to extract cookies from (e.g., "chrome", "firefox", "edge").
         Used for authenticated requests (YouTube Shorts, Facebook Reels, etc.).
+    cookies_file:
+        Path to cookies file in Netscape format (e.g., /app/cookies.txt).
+        Used when no browser is available (containers).
     """
 
     def __init__(
@@ -42,10 +46,12 @@ class BaseScraper:
         use_js_runtimes: bool = True,
         use_remote_components: bool = False,
         cookies_from_browser: Optional[str] = None,
+        cookies_file: Optional[str] = None,
     ) -> None:
         self._use_js_runtimes = use_js_runtimes
         self._use_remote_components = use_remote_components
         self._cookies_from_browser = cookies_from_browser
+        self._cookies_file = cookies_file or os.getenv("YTDLP_COOKIES_FILE")
 
     @property
     def _base_opts(self) -> dict[str, Any]:
@@ -56,72 +62,12 @@ class BaseScraper:
             "socket_timeout": 15,
         }
         if self._use_js_runtimes:
-            opts["js_runtimes"] = {"node": {}}
+            # Use deno for JavaScript runtime (recommended by yt-dlp)
+            opts["js_runtimes"] = {"deno": {}}
         if self._use_remote_components:
             opts["remote_components"] = ["ejs:github"]
         if self._cookies_from_browser:
             opts["cookies_from_browser"] = self._cookies_from_browser
+        if self._cookies_file:
+            opts["cookiefile"] = self._cookies_file
         return opts
-
-    @staticmethod
-    def _is_rate_limited(exc: BaseException) -> bool:
-        """Return ``True`` when extraction failed with a temporary HTTP limit."""
-        message = str(exc)
-        return "HTTP Error 403" in message or "HTTP Error 429" in message
-
-    async def _extract(self, url: str, fmt: str) -> dict[str, Any]:
-        """Run yt-dlp format selection for ``url`` and return the info dict.
-
-        yt-dlp is blocking, so the actual work moves to a worker thread.
-        Temporary rate limits are retried with a growing backoff.
-        """
-        opts = {**self._base_opts, "format": fmt}
-        last_error: Exception | None = None
-
-        for index, delay in enumerate((0.0, *_RETRY_DELAYS)):
-            if delay:
-                await asyncio.sleep(delay)
-            try:
-                with yt_dlp.YoutubeDL(opts) as ydl:
-                    # `download=False` still performs format selection but
-                    # writes nothing to disk: only the resolved URLs are needed.
-                    return await asyncio.to_thread(ydl.extract_info, url, download=False)
-            except Exception as exc:  # noqa: BLE001 - re-raised unless it is a rate limit
-                last_error = exc
-                if not self._is_rate_limited(exc):
-                    raise
-                logger.warning(
-                    "Rate limited while resolving %s (attempt %d): %s",
-                    url, index + 1, exc,
-                )
-
-        raise DownloadError(f"Unable to resolve {url}: {last_error}")
-
-    async def resolve_audio(self, url: str, format_id: str) -> dict[str, Any]:
-        """Resolve a single audio format to its direct media URL.
-
-        Returns the raw yt-dlp info dict for the selected format. Platform
-        services are expected to wrap this into :class:`ResolvedAudio`.
-        """
-        info = await self._extract(url=url, fmt=format_id)
-        media_url = info.get("url")
-        if not media_url:
-            raise DownloadError(f"Format {format_id} is not available for {url}")
-        return info
-
-    async def resolve_streams(self, url: str, height: int) -> dict[str, Any]:
-        """Resolve the best video stream for ``height`` together with its audio.
-
-        Returns the raw yt-dlp info dict. Platform services wrap this into
-        :class:`ResolvedStreams`.
-        """
-        # `height<=` instead of `height=`: the exact height is not always
-        # available, which would fail the whole request.
-        fmt = f"bv*[height<={height}]+ba/b[height<={height}]"
-        return await self._extract(url=url, fmt=fmt)
-
-    async def get_post_info(self, url: str) -> dict:
-        """Extract raw post metadata without downloading anything."""
-        with yt_dlp.YoutubeDL(dict(self._base_opts)) as ydl:
-            result = await asyncio.to_thread(ydl.extract_info, url=url)
-            return dict(result)

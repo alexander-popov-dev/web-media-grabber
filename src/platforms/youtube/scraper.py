@@ -21,19 +21,15 @@ logger = logging.getLogger(__name__)
 class YoutubeScraper(BaseScraper):
     """Resolve YouTube posts into direct media URLs."""
 
-    def __init__(self, cookies_from_browser: Optional[str] = None) -> None:
+    def __init__(self, cookies_from_browser: Optional[str] = None, cookies_file: Optional[str] = None) -> None:
         # YouTube needs both js_runtimes (signature challenge) and
         # remote_components (ejs from github, keeps progressive formats).
-        super().__init__(use_js_runtimes=True, use_remote_components=True)
-        self._cookies_from_browser = cookies_from_browser
-
-    @property
-    def _base_opts(self) -> dict[str, Any]:
-        """Build yt-dlp options shared by every extraction call."""
-        opts = super()._base_opts
-        if self._cookies_from_browser:
-            opts["cookies_from_browser"] = self._cookies_from_browser
-        return opts
+        super().__init__(
+            use_js_runtimes=True,
+            use_remote_components=True,
+            cookies_from_browser=cookies_from_browser,
+            cookies_file=cookies_file,
+        )
 
     @staticmethod
     def _has_video(fmt: dict[str, Any] | None) -> bool:
