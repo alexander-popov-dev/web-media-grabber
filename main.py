@@ -54,7 +54,7 @@ async def backend():
     app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
     config = uvicorn.Config(
         app=app,
-        host=backend_settings.backend_host,
+        host="0.0.0.0",
         port=backend_settings.backend_port
     )
     server = uvicorn.Server(config)
