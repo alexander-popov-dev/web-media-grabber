@@ -13,9 +13,14 @@ class YoutubeProvider(Provider):
     def get_scraper(self) -> YoutubeScraper:
         # Support cookies from browser for authenticated requests (YouTube Shorts, etc.)
         # Set YT_COOKIES_BROWSER=chrome/firefox/edge in .env to enable
+        # Or use YTDLP_COOKIES_FILE for cookie file in containers
         import os
         cookies_browser = os.getenv("YT_COOKIES_BROWSER")
-        return YoutubeScraper(cookies_from_browser=cookies_browser)
+        cookies_file = os.getenv("YTDLP_COOKIES_FILE")
+        return YoutubeScraper(
+            cookies_from_browser=cookies_browser,
+            cookies_file=cookies_file,
+        )
 
     @provide(scope=Scope.REQUEST)
     def get_parser(self) -> YoutubeParser:

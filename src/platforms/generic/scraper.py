@@ -14,7 +14,16 @@ from src.platforms.core.scraper import BaseScraper
 class GenericScraper(BaseScraper):
     """Resolve media URLs for any platform supported by yt-dlp."""
 
-    def __init__(self, cookies_from_browser: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        cookies_from_browser: Optional[str] = None,
+        cookies_file: Optional[str] = None,
+    ) -> None:
         # js_runtimes helps with signature challenges on many platforms;
         # remote_components is not needed for non-YouTube sites.
-        super().__init__(use_js_runtimes=True, use_remote_components=False, cookies_from_browser=cookies_from_browser)
+        super().__init__(
+            use_js_runtimes=True,
+            use_remote_components=False,
+            cookies_from_browser=cookies_from_browser,
+            cookies_file=cookies_file,
+        )
