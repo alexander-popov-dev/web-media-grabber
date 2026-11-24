@@ -10,19 +10,11 @@ WORKDIR /app
 # Copy dependency files
 COPY pyproject.toml uv.lock ./
 
-# Install dependencies
-RUN uv sync --frozen --no-dev
+# Install dependencies (without --frozen to pick up new deps from pyproject.toml)
+RUN uv sync --no-dev
 
 # Runtime stage
 FROM python:3.13-slim AS runtime
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
-    curl \
-    ca-certificates \
-    unzip \
-    && rm -rf /var/lib/apt/lists/*
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -41,9 +33,6 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 RUN npm install -g playwright \
     && npx playwright install chromium \
     && npx playwright install-deps chromium
-
-# Install Playwright Python package (fallback if not in uv.lock)
-RUN pip install playwright==1.40.0
 
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash app
