@@ -24,6 +24,17 @@ logger = logging.getLogger(__name__)
 _RETRY_DELAYS = (1.0, 2.5, 5.0)
 
 
+def _configured_proxy() -> str | None:
+    """Return the explicit outbound proxy for YouTube requests, if any.
+
+    YouTube can flag a server IP for bot checks; neither cookies nor player
+    clients bypass that, so the only reliable fix is routing via another IP.
+    Standard ``HTTPS_PROXY`` is already honoured by yt-dlp, but an explicit
+    variable makes the intent unambiguous in Docker.
+    """
+    return os.getenv("YOUTUBE_PROXY") or os.getenv("YTDLP_PROXY") or None
+
+
 def _read_cookies_file(filepath: str) -> str | None:
     """Read a cookie file once and validate its shape.
 
@@ -178,6 +189,11 @@ class BaseScraper:
             "socket_timeout": 15,
         }
 
+        proxy = _configured_proxy()
+        if proxy:
+            opts["proxy"] = proxy
+            logger.info("yt-dlp outbound proxy configured")
+
         if self._js_runtime:
             opts["js_runtimes"] = {
                 self._js_runtime: {"path": self._runtime_path_resolved}
@@ -311,7 +327,12 @@ class BaseScraper:
                 logger.warning("yt-dlp extraction failed for %s: %s", url, exc)
 
                 if _is_bot_detection_error(exc) and not self._cookies_refreshed:
-                    logger.warning("Bot detection triggered for %s, attempting cookie refresh", url)
+                    logger.warning(
+                        "YouTube bot-check for %s (IP-level: cookies and player clients "
+                        "do not bypass it)%s",
+                        url,
+                        "" if _configured_proxy() else "; set YOUTUBE_PROXY to use another IP",
+                    )
                     if await self._refresh_cookies(url, force=True):
                         # The normalized cookiefile is updated in place and
                         # `opts` still points at it — rebuilding would overwrite

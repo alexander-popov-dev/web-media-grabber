@@ -94,6 +94,25 @@ make test URL=<youtube-url>       # or test a specific video
 `make test` calls `/api/post/get` and then follows the returned download link through the running
 backend, so it verifies metadata extraction and real byte streaming.
 
+## YouTube bot checks
+
+If YouTube answers `Sign in to confirm you're not a bot`, the block comes from the **server's IP**,
+not from the cookie file. This was verified directly: the watch page returns
+`playabilityStatus: LOGIN_REQUIRED` for the same video with full auth cookies, anonymous cookies,
+no cookies, every supported player client and every User-Agent. yt-dlp also drops `LOGIN_INFO`
+from its in-memory jar because YouTube sends a cookie-deletion header — that is a symptom of the
+IP-level block, not a broken export.
+
+The only reliable fix is a different outbound IP. Set `YOUTUBE_PROXY` in `.env` (it is used by both
+yt-dlp and the Playwright cookie refresh):
+
+```ini
+YOUTUBE_PROXY=http://user:pass@residential-host:port
+```
+
+Popular videos may still work without it because they are served from YouTube's cache; less popular
+videos are checked per request.
+
 ## API
 
 `GET /api/post/get`

@@ -1,6 +1,7 @@
 """Cookie extraction utilities using Playwright."""
 
 import logging
+import os
 import time
 from pathlib import Path
 from typing import Optional
@@ -50,8 +51,11 @@ async def extract_cookies(
     Returns:
         Tuple of (Netscape format cookie string, bool indicating if cookies were found)
     """
+    proxy = os.getenv("YOUTUBE_PROXY") or os.getenv("YTDLP_PROXY")
     async with async_playwright() as p:
-        # Launch with stealth options to avoid detection
+        # Launch with stealth options to avoid detection. The same outbound IP
+        # must be used here and by yt-dlp, otherwise refreshed cookies are tied
+        # to a different session.
         browser = await p.chromium.launch(
             headless=True,
             args=[
@@ -61,6 +65,7 @@ async def extract_cookies(
                 "--disable-blink-features=AutomationControlled",
                 "--disable-web-security",
             ],
+            **({"proxy": {"server": proxy}} if proxy else {}),
         )
         try:
             context = await browser.new_context(
