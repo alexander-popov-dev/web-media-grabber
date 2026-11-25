@@ -315,10 +315,30 @@ class BaseScraper:
         if fmt is not None:
             opts["format"] = fmt
 
+        proxy = _configured_proxy()
+        # A rotating proxy gives every request a different exit IP, so a single
+        # extraction is a lottery: the page, player API and PO-token script can
+        # land on different addresses. Retrying simply draws another IP.
+        delays = (0.0, 0.5, 1.0, 1.5, 2.5, 4.0, 6.0) if proxy else (0.0, *_RETRY_DELAYS)
+
         last_error: Exception | None = None
-        for index, delay in enumerate((0.0, *_RETRY_DELAYS)):
+        for index, delay in enumerate(delays):
             if delay:
                 await asyncio.sleep(delay)
+            # yt-dlp writes the cookiejar back to the file on exit; restore the
+            # pristine source before each retry so it never degrades.
+            if proxy and index and opts.get("cookiefile") and self._cookies_file:
+                content = _read_cookies_file(self._cookies_file)
+                if content is not None:
+                    try:
+                        Path(opts["cookiefile"]).write_text(
+                            _normalize_cookies_content(
+                                content, self._auto_cookies_domain or "youtube.com"
+                            ),
+                            encoding="utf-8",
+                        )
+                    except Exception:  # noqa: BLE001 - best effort
+                        pass
             try:
                 with yt_dlp.YoutubeDL(opts) as ydl:
                     return await asyncio.to_thread(ydl.extract_info, url, download=False)
@@ -326,19 +346,25 @@ class BaseScraper:
                 last_error = exc
                 logger.warning("yt-dlp extraction failed for %s: %s", url, exc)
 
-                if _is_bot_detection_error(exc) and not self._cookies_refreshed:
-                    logger.warning(
-                        "YouTube bot-check for %s (IP-level: cookies and player clients "
-                        "do not bypass it)%s",
-                        url,
-                        "" if _configured_proxy() else "; set YOUTUBE_PROXY to use another IP",
-                    )
-                    if await self._refresh_cookies(url, force=True):
-                        # The normalized cookiefile is updated in place and
-                        # `opts` still points at it — rebuilding would overwrite
-                        # the freshly merged cookies from the read-only source.
+                if _is_bot_detection_error(exc):
+                    if proxy:
+                        logger.warning(
+                            "Bot-check from a proxy exit IP; retrying with another "
+                            "one (attempt %d/%d)", index + 1, len(delays)
+                        )
                         continue
-                    logger.error("Cookie refresh failed, cannot bypass bot detection")
+                    if not self._cookies_refreshed:
+                        logger.warning(
+                            "YouTube bot-check for %s (IP-level: cookies and player "
+                            "clients do not bypass it); set YOUTUBE_PROXY to use "
+                            "another IP", url
+                        )
+                        if await self._refresh_cookies(url, force=True):
+                            # The normalized cookiefile is updated in place and
+                            # `opts` still points at it — rebuilding would
+                            # overwrite the freshly merged cookies.
+                            continue
+                        logger.error("Cookie refresh failed, cannot bypass bot detection")
 
                 if not self._is_rate_limited(exc):
                     raise

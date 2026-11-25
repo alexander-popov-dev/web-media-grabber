@@ -39,7 +39,10 @@ class YoutubeScraper(BaseScraper):
             cookies_file=cookies_file,
             auto_cookies_url=auto_cookies_url,
             auto_cookies_domain=auto_cookies_domain,
-            player_clients=["mweb", "tv", "web_safari"],
+            # web_safari must come first: it obtains the PO token that the
+            # following clients need. web_embedded is the last-resort client
+            # for videos where the first two still hit a bot check.
+            player_clients=["web_safari", "mweb", "web_embedded"],
             pot_provider_server_home=os.getenv(
                 "BGUTIL_POT_HOME", "/app/bgutil-ytdlp-pot-provider/server"
             ),
