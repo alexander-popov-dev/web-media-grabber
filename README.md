@@ -29,10 +29,13 @@ and served as a fragmented MP4, so the browser always receives a single playable
 
 ## Requirements
 
-- Python 3.10+
+- Python 3.13+
 - `ffmpeg` on `PATH` (required for video download; audio relay works without it)
-- Node.js runtime available to yt-dlp (`js_runtimes={"node": {}}`) — required to solve YouTube's
-  signature challenge and keep progressive formats in the extraction result.
+- Deno >= 2.3 (or Node >= 22) available to yt-dlp — required to solve YouTube's signature challenge.
+- `bgutil-ytdlp-pot-provider` (Python plugin + server from the Docker image) — YouTube PO tokens are
+  needed to avoid "Sign in to confirm you're not a bot" when running from a server/datacenter IP.
+- For Docker, see `deploy/docker-compose.yaml`; the image already contains Deno, ffmpeg, Playwright
+  and the PO token provider.
 
 ## Installation
 
@@ -49,17 +52,19 @@ python -m venv .venv
 pip install -e .
 ```
 
-Create a `.env` (or `.env.local`) next to `main.py`:
+`BACKEND_HOST` and `BACKEND_PORT` are optional: they default to `127.0.0.1` and `8000`.
+Create a `.env` (or `.env.local`) next to `main.py` to override them:
 
 ```ini
 DEBUG=TRUE
-SECRET_KEY=change-me
 BACKEND_HOST=127.0.0.1
 BACKEND_PORT=8000
 ```
 
-`DEBUG=TRUE` makes format links point at `http://<host>:<port>`; in production set `DEBUG=FALSE`
-and they will use `https://<host>`.
+`BACKEND_HOST` is the public hostname used in download links and the Traefik `Host()` rule —
+the server itself always binds `0.0.0.0` inside the container. `DEBUG=TRUE` makes format links
+point at `http://<host>:<port>`; in production set `DEBUG=FALSE` and they will use
+`https://<host>`.
 
 ## Run
 
@@ -76,6 +81,18 @@ The app serves:
 
 Open the frontend, paste a YouTube link, click **Download**, pick a quality, and the file starts
 downloading from the browser.
+
+### Docker smoke test
+
+```bash
+make rebuild-full
+make ps
+make test                         # uses a known public YouTube video
+make test URL=<youtube-url>       # or test a specific video
+```
+
+`make test` calls `/api/post/get` and then follows the returned download link through the running
+backend, so it verifies metadata extraction and real byte streaming.
 
 ## API
 
@@ -114,17 +131,26 @@ traceback.
 | `src/platforms/youtube/parser.py` | YouTube parser: mp4/webm video, m4a/webm/mp3/aac/opus audio. |
 | `src/platforms/generic/scraper.py` | Generic scraper for Facebook/Instagram/TikTok (no remote_components). |
 | `src/platforms/{facebook,instagram,tiktok}/service.py` | Per-platform service facades (`PLATFORM` markers). |
-| `src/backend/download/service.py` | Dispatches to the right platform service; `stream_audio` (urllib relay with `Range`) and `stream_video` (ffmpeg `-c copy` fragmented MP4 into `pipe:1`, client-disconnect kill). |
+| `src/backend/download/service.py` | Dispatches to the right platform service; downloads through the platform scraper (yt-dlp with cookies/PO tokens), then falls back to urllib relay or an ffmpeg `-c copy` fragmented MP4 pipe. |
 | `src/backend/download/router.py` | `/post/get` and `/post/download` (`response_model=None` because a `StreamingResponse` union is not a valid pydantic response model). |
 | `src/backend/download/exceptions.py` | `PlatformNotSupported`, `MediaNotAvailable` — mapped to JSON by the global handler in `main.py`. |
 
 ## Notes
 
-- Video is downloaded as DASH (video without audio), so ffmpeg remuxes `-c copy` into a fragmented
-  MP4 (`frag_keyframe+empty_moov`) streamed through a pipe — a regular MP4 header cannot be written
-  before the total size is known, which never happens while streaming.
-- Audio relay sends `Range: bytes=0-`; without it googlevideo throttles to ~34 kB/s, while a ranged
-  request is served at full speed and still reports `Content-Length`.
+- YouTube extraction uses the `mweb`, `tv` and `web_safari` player clients plus generated PO tokens.
+  Older yt-dlp releases (< 2026.11.23) break on current YouTube players and must not be used.
+- Mount a cookies file at `cookies/cookies_youtube.txt` (either Netscape format or a raw
+  `name=value; ...` header; the app normalizes it and fixes the expiry). For best results export it
+  from a logged-in YouTube account. Leave `YT_COOKIES_BROWSER` empty in containers — browsers are
+  unavailable there and would shadow the mounted file.
+- Video downloads are performed by yt-dlp in the same run that extracts cookies, visitor data and
+  PO tokens. Fetching a resolved Google Video URL later with plain urllib/ffmpeg often returns 403.
+  If yt-dlp cannot download the format, the service falls back to ffmpeg `-c copy` remuxing and then
+  to a direct relay.
+- Anonymous cookies are enough for many public videos, but YouTube may still answer 403 for a
+  particular video from a datacenter IP. Export a logged-in `cookies_youtube.txt` in that case.
+- The audio relay sends `Range: bytes=0-`; without it googlevideo throttles to ~34 kB/s, while a
+  ranged request is served at full speed and still reports `Content-Length`.
 - `.env`, `.env.local`, `.venv`, `__pycache__` are gitignored. `.idea/` is also ignored.
 
 ## License

@@ -1,10 +1,13 @@
 """Cookie extraction utilities using Playwright."""
 
-import os
+import logging
+import time
 from pathlib import Path
 from typing import Optional
 
 from playwright.async_api import async_playwright
+
+logger = logging.getLogger(__name__)
 
 
 def cookies_to_netscape(cookies: list[dict], domain_filter: Optional[str] = None) -> str:
@@ -18,7 +21,12 @@ def cookies_to_netscape(cookies: list[dict], domain_filter: Optional[str] = None
         flag = "TRUE" if domain.startswith(".") else "FALSE"
         path = c.get("path", "/")
         secure = "TRUE" if c.get("secure") else "FALSE"
-        expires = str(int(c.get("expires", 0))) if c.get("expires") else "0"
+        # Playwright returns -1 for session cookies; Netscape uses 0 for session
+        raw_expires = c.get("expires")
+        if raw_expires is None or raw_expires <= 0:
+            expires = "0"
+        else:
+            expires = str(int(raw_expires))
         name = c.get("name", "")
         value = c.get("value", "")
         lines.append("\t".join([domain, flag, path, secure, expires, name, value]))
@@ -73,13 +81,14 @@ async def extract_cookies(
             page = await context.new_page()
 
             # Navigate to URL
-            await page.goto(url, wait_until="networkidle", timeout=timeout)
+            await page.goto(url, wait_until="domcontentloaded", timeout=timeout)
 
             if wait_for:
                 await page.wait_for_selector(wait_for, timeout=timeout)
 
-            # Small wait for any dynamic cookies
-            await page.wait_for_timeout(2000)
+            # Short wait for dynamic cookies; `wait_for` is used when a
+            # specific selector matters, so avoid a fixed multi-second delay.
+            await page.wait_for_timeout(500)
 
             # Extract cookies
             cookies = await context.cookies()
@@ -118,7 +127,6 @@ def is_cookies_fresh(filepath: str, max_age_hours: int = 24) -> bool:
     content = path.read_text(encoding="utf-8")
     if len(content.splitlines()) <= 1:
         return False
-    import time
     age_hours = (time.time() - path.stat().st_mtime) / 3600
     return age_hours < max_age_hours
 
@@ -138,7 +146,7 @@ async def ensure_fresh_cookies(
     if not force_refresh and is_cookies_fresh(filepath):
         return filepath
 
-    print(f"Extracting fresh cookies for {domain_filter}...")
+    logger.info("Extracting fresh cookies for %s", domain_filter)
     cookies_str, has_cookies = await extract_cookies(url, domain_filter=domain_filter)
     
     if has_cookies:

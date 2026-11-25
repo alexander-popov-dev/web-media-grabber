@@ -52,9 +52,13 @@ async def backend():
         allow_headers=["*"],
     )
     app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+    # BACKEND_HOST is the public hostname (used in links / Traefik rule), not
+    # a bind address: a domain resolves to the server's external IP, which is
+    # not assigned inside the container. Bind every interface instead; the
+    # container publishes no host port anyway.
     config = uvicorn.Config(
         app=app,
-        host=backend_settings.backend_host,
+        host="0.0.0.0",
         port=backend_settings.backend_port
     )
     server = uvicorn.Server(config)

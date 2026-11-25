@@ -26,8 +26,7 @@ class GenericProvider(Provider):
             self,
             scraper: GenericScraper,
             parser: BaseParser,
-    ) -> "FacebookService":
-        from src.platforms.facebook.service import FacebookService
+    ) -> FacebookService:
         return FacebookService(scraper=scraper, parser=parser)
 
     @provide(scope=Scope.REQUEST)
@@ -35,8 +34,7 @@ class GenericProvider(Provider):
             self,
             scraper: GenericScraper,
             parser: BaseParser,
-    ) -> "InstagramService":
-        from src.platforms.instagram.service import InstagramService
+    ) -> InstagramService:
         return InstagramService(scraper=scraper, parser=parser)
 
     @provide(scope=Scope.REQUEST)
@@ -44,6 +42,5 @@ class GenericProvider(Provider):
             self,
             scraper: GenericScraper,
             parser: BaseParser,
-    ) -> "TikTokService":
-        from src.platforms.tiktok.service import TikTokService
+    ) -> TikTokService:
         return TikTokService(scraper=scraper, parser=parser)

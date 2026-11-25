@@ -1,3 +1,6 @@
+import logging
+import os
+
 from dishka import Provider, provide, Scope
 
 from src.backend.settings import get_backend_settings
@@ -6,17 +9,18 @@ from src.platforms.youtube.scraper import YoutubeScraper
 from src.platforms.youtube.service import YoutubeService
 
 backend_settings = get_backend_settings()
+logger = logging.getLogger(__name__)
 
 
 class YoutubeProvider(Provider):
     @provide(scope=Scope.REQUEST)
     def get_scraper(self) -> YoutubeScraper:
-        # Support cookies from browser for authenticated requests (YouTube Shorts, etc.)
-        # Set YT_COOKIES_BROWSER=chrome/firefox/edge in .env to enable
-        # Or use YTDLP_COOKIES_FILE for cookie file in containers
-        import os
+        # Use bind mount cookies file (has auth cookies like __Secure-YNID)
         cookies_browser = os.getenv("YT_COOKIES_BROWSER")
         cookies_file = os.getenv("YT_COOKIES_FILE") or "/app/cookies/cookies_youtube.txt"
+        
+        logger.info("YouTube scraper: cookies_browser=%s, cookies_file=%s", cookies_browser, cookies_file)
+        
         return YoutubeScraper(
             cookies_from_browser=cookies_browser,
             cookies_file=cookies_file,

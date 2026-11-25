@@ -7,17 +7,22 @@ services:
     restart: always
     env_file:
       - ../.env
+    environment:
+      # Never try browser cookie extraction inside the container: there is no
+      # browser profile, and it would shadow the mounted cookie file.
+      - YT_COOKIES_BROWSER=
+      - YT_COOKIES_FILE=/app/cookies/cookies_youtube.txt
     volumes:
       - media:/app/media
-      - cookies:/app/cookies
-      # Cookie files are created inside the container by the application
-      # when cookies are extracted via Playwright. They are stored in the
-      # named 'cookies' volume at /app/cookies/
+      # Bind-mount local YouTube cookies (source file, read-only)
+      - ../cookies/cookies_youtube.txt:/app/cookies/cookies_youtube.txt:ro
+      # Note: normalized cookies and Playwright-extracted cookies are written
+      # to /app/cookies/ in the container filesystem (no named volume needed)
     networks:
       - traefik-public
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.media-grabber-backend.rule=Host(`${EXTERNAL_HOST}`)"
+      - "traefik.http.routers.media-grabber-backend.rule=Host(`${BACKEND_HOST}`)"
       - "traefik.http.routers.media-grabber-backend.tls.certresolver=le"
       - "traefik.http.services.media-grabber-backend.loadbalancer.server.port=${BACKEND_PORT}"
 
@@ -26,7 +31,6 @@ services:
 
 volumes:
   media:
-  cookies:
 
 networks:
   traefik-public:
