@@ -56,6 +56,9 @@ docker-compose*.yaml
 *.md
 !README.md
 
+# Cookies are bind-mounted at runtime, never bake them into the image
+cookies/
+
 # Media files (stored in volume)
 media/
 *.mp4

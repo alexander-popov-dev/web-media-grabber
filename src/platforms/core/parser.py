@@ -1,8 +1,8 @@
 """Base parser for all platforms.
 
 Turns a raw yt-dlp info dict into a :class:`Post` with download links. The
-logic is platform-agnostic; subclasses only configure which extensions are
-considered valid for video and audio.
+logic is platform-agnostic; subclasses only configure which protocols and
+extensions are considered valid.
 """
 
 from urllib.parse import urlencode
@@ -22,6 +22,9 @@ class BaseParser:
         Extensions considered valid for video streams.
     supported_audio_exts:
         Extensions considered valid for audio streams.
+    allowed_protocols:
+        URL protocol prefixes accepted from yt-dlp. YouTube also serves
+        ``m3u8*`` HLS formats, which the download path can remux to MP4.
     """
 
     def __init__(
@@ -29,10 +32,12 @@ class BaseParser:
         base_url: str,
         supported_video_exts: set[str] | None = None,
         supported_audio_exts: set[str] | None = None,
+        allowed_protocols: tuple[str, ...] = ("https",),
     ) -> None:
         self._base_url = base_url
         self._supported_video_exts = supported_video_exts or {"mp4", "webm"}
         self._supported_audio_exts = supported_audio_exts or {"m4a", "webm", "mp3", "aac", "opus"}
+        self._allowed_protocols = allowed_protocols
 
     @staticmethod
     def _has(codec: str | None) -> bool:
@@ -66,20 +71,31 @@ class BaseParser:
         mb = kb / 1024
         return f"{mb:.1f} MB" if mb < 1024 else f"{mb / 1024:.1f} GB"
 
+    def _formats(self, response: dict) -> list[dict]:
+        """Filter and normalize yt-dlp formats once for both video and audio."""
+        all_exts = self._supported_video_exts | self._supported_audio_exts
+        formats: list[dict] = []
+        for fmt in response.get("formats", []):
+            if not fmt.get("url"):
+                continue
+            protocol = str(fmt.get("protocol") or "")
+            if not any(protocol.startswith(prefix) for prefix in self._allowed_protocols):
+                continue
+            ext = fmt.get("ext")
+            if ext is None:
+                # HLS/SABR formats sometimes arrive without an ext. The
+                # download endpoint remuxes everything into MP4, so label it
+                # as such instead of dropping an otherwise usable quality.
+                fmt = {**fmt, "ext": "mp4"}
+            elif ext not in all_exts:
+                continue
+            formats.append(fmt)
+        return formats
+
     def parse(self, response: dict) -> Post:
         url = response["webpage_url"]
         duration = response.get("duration")
-        all_exts = (
-            {None}
-            | self._supported_video_exts
-            | self._supported_audio_exts
-        )
-        formats = [
-            f for f in response.get("formats", [])
-            if f.get("url")
-            and f.get("protocol") == "https"
-            and f.get("ext") in all_exts
-        ]
+        formats = self._formats(response)
 
         audio_streams = [
             f for f in formats

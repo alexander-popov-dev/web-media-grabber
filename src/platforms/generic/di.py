@@ -2,8 +2,10 @@ from dishka import Provider, provide, Scope
 
 from src.backend.settings import get_backend_settings
 from src.platforms.core.parser import BaseParser
+from src.platforms.facebook.service import FacebookService
 from src.platforms.generic.scraper import GenericScraper
-from src.platforms.generic.service import FacebookService, InstagramService, TikTokService
+from src.platforms.instagram.service import InstagramService
+from src.platforms.tiktok.service import TikTokService
 
 backend_settings = get_backend_settings()
 

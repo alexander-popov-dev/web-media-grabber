@@ -7,9 +7,9 @@ progressive formats).
 """
 
 import logging
+import os
 from typing import Any, Optional
 
-import yt_dlp
 from yt_dlp.utils import DownloadError
 
 from src.platforms.core.scraper import BaseScraper
@@ -21,14 +21,28 @@ logger = logging.getLogger(__name__)
 class YoutubeScraper(BaseScraper):
     """Resolve YouTube posts into direct media URLs."""
 
-    def __init__(self, cookies_from_browser: Optional[str] = None, cookies_file: Optional[str] = None) -> None:
-        # YouTube needs both js_runtimes (signature challenge) and
+    def __init__(
+        self,
+        cookies_from_browser: Optional[str] = None,
+        cookies_file: Optional[str] = None,
+        auto_cookies_url: str = "https://www.youtube.com",
+        auto_cookies_domain: str = "youtube.com",
+    ) -> None:
+        # YouTube needs deno (JS runtime for signature challenge) and
         # remote_components (ejs from github, keeps progressive formats).
+        # ``mweb``/``tv``/``web_safari`` player clients avoid the bot check that
+        # hits the default clients from server IPs (together with PO tokens).
         super().__init__(
-            use_js_runtimes=True,
+            js_runtime="deno",
             use_remote_components=True,
             cookies_from_browser=cookies_from_browser,
             cookies_file=cookies_file,
+            auto_cookies_url=auto_cookies_url,
+            auto_cookies_domain=auto_cookies_domain,
+            player_clients=["mweb", "tv", "web_safari"],
+            pot_provider_server_home=os.getenv(
+                "BGUTIL_POT_HOME", "/app/bgutil-ytdlp-pot-provider/server"
+            ),
         )
 
     @staticmethod
@@ -102,31 +116,13 @@ class YoutubeScraper(BaseScraper):
         if not video:
             raise DownloadError(f"No video stream found for height <= {height} at {url}")
 
+        # A progressive format already contains both tracks. Passing its URL
+        # as a second ffmpeg input would download the same signed URL twice.
+        if audio is video or (audio and audio.get("url") == video.get("url")):
+            audio = None
+
         return ResolvedStreams(
             video_url=video["url"],
             audio_url=audio.get("url") if audio else None,
             height=video.get("height") or height,
         )
-
-    def download_video(self, url: str, height: int, out_dir: str = "downloads") -> None:
-        """Download the best matching video+audio pair into ``out_dir``."""
-        container = "mp4" if height <= 1080 else "mkv"
-        opts = {
-            "format": f"bv*[height={height}]+ba/b[height={height}]",
-            "format_sort": ["ext"] if height <= 1080 else [],
-            "merge_output_format": container,
-            "outtmpl": f"{out_dir}/%(title).150B [{height}p].%(ext)s",
-            "noplaylist": True,
-        }
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            ydl.download([url])
-
-    def download_audio(self, url: str, format_id: str, out_dir: str = "downloads") -> None:
-        """Download a single audio format into ``out_dir``."""
-        opts = {
-            "format": format_id,
-            "outtmpl": f"{out_dir}/%(title).150B [audio].%(ext)s",
-            "noplaylist": True,
-        }
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            ydl.download([url])

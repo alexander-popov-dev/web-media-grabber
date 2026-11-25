@@ -5,12 +5,16 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "curl-cffi>=0.17.0",
+    # bgutil plugin generates YouTube PO tokens, required to bypass the
+    # "Sign in to confirm you're not a bot" check from server IPs.
+    "bgutil-ytdlp-pot-provider>=2.0.2",
     "dishka>=1.10.1",
     "fastapi>=0.165.0",
-    "parsel>=1.12.1",
+    "playwright>=1.40.0",
     "pydantic>=2.14.3",
     "pydantic-settings>=2.16.2",
     "uvicorn>=0.54.0",
-    "yt-dlp>=2026.10.26",
+    # 2026.11.23 switched to the tv player variant, which is required for
+    # current YouTube players (older releases fail the signature challenge).
+    "yt-dlp>=2026.11.23",
 ]

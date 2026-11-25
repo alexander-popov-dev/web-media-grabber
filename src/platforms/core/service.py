@@ -5,6 +5,7 @@ implements this interface so the download layer can dispatch requests
 without knowing the concrete platform.
 """
 
+from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from src.platforms.core.schemas import Post, ResolvedAudio, ResolvedStreams
@@ -24,6 +25,17 @@ class PlatformService(Protocol):
 
     async def resolve_streams(self, url: str, height: int) -> ResolvedStreams:
         """Resolve a video quality to the video/audio URLs to merge."""
+
+    async def download_to_file(
+        self,
+        url: str,
+        *,
+        format_selector: str,
+        out_dir: str,
+        filename: str = "%(id)s.%(ext)s",
+        merge_output_format: str | None = None,
+    ) -> Path:
+        """Download a format through the platform's yt-dlp context."""
 
 
 class BasePlatformService:
@@ -55,6 +67,24 @@ class BasePlatformService:
                 format=result.get("format") or format_id,
             )
         return result
+
+    async def download_to_file(
+        self,
+        url: str,
+        *,
+        format_selector: str,
+        out_dir: str,
+        filename: str = "%(id)s.%(ext)s",
+        merge_output_format: str | None = None,
+    ) -> Path:
+        """Download a format into ``out_dir`` using the platform scraper."""
+        return await self._scraper.download_to_file(
+            url,
+            format_selector=format_selector,
+            out_dir=out_dir,
+            filename=filename,
+            merge_output_format=merge_output_format,
+        )
 
     async def resolve_streams(self, url: str, height: int) -> ResolvedStreams:
         """Resolve a video quality to the video/audio URLs to merge."""
