@@ -107,11 +107,15 @@ The only reliable fix is a different outbound IP. Set `YOUTUBE_PROXY` in `.env` 
 yt-dlp and the Playwright cookie refresh):
 
 ```ini
-YOUTUBE_PROXY=http://user:pass@residential-host:port
+YOUTUBE_PROXY=http://user:pass@host:port,http://user2:pass2@host2:port2
 ```
 
-Popular videos may still work without it because they are served from YouTube's cache; less popular
-videos are checked per request.
+A comma-separated pool is supported: YouTube also blocks some IP/video pairs individually, so
+extraction retries the next endpoint on a bot check and remembers the working one for the
+following download request (metadata and download are separate HTTP requests).
+
+Popular videos may still work without a proxy because they are served from YouTube's cache; less
+popular videos are checked per request.
 
 ## API
 

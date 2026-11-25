@@ -24,15 +24,19 @@ logger = logging.getLogger(__name__)
 _RETRY_DELAYS = (1.0, 2.5, 5.0)
 
 
-def _configured_proxy() -> str | None:
-    """Return the explicit outbound proxy for YouTube requests, if any.
+_PROXY_CACHE_TTL = 600.0
+_proxy_cache: dict[str, tuple[str, float]] = {}
 
-    YouTube can flag a server IP for bot checks; neither cookies nor player
-    clients bypass that, so the only reliable fix is routing via another IP.
-    Standard ``HTTPS_PROXY`` is already honoured by yt-dlp, but an explicit
-    variable makes the intent unambiguous in Docker.
+
+def _configured_proxies() -> list[str]:
+    """Return the configured outbound proxy pool.
+
+    YouTube blocks some datacenter IPs per video, so a comma-separated pool is
+    tried entry by entry until one of them passes the bot check. Standard
+    ``HTTPS_PROXY`` is already honoured by yt-dlp; this variable is explicit.
     """
-    return os.getenv("YOUTUBE_PROXY") or os.getenv("YTDLP_PROXY") or None
+    raw = os.getenv("YOUTUBE_PROXY") or os.getenv("YTDLP_PROXY") or ""
+    return [item.strip() for item in raw.split(",") if item.strip()]
 
 
 def _read_cookies_file(filepath: str) -> str | None:
@@ -189,10 +193,10 @@ class BaseScraper:
             "socket_timeout": 15,
         }
 
-        proxy = _configured_proxy()
-        if proxy:
-            opts["proxy"] = proxy
-            logger.info("yt-dlp outbound proxy configured")
+        proxies = _configured_proxies()
+        if proxies:
+            opts["proxy"] = proxies[0]
+            logger.info("yt-dlp outbound proxy pool: %d endpoint(s)", len(proxies))
 
         if self._js_runtime:
             opts["js_runtimes"] = {
@@ -255,6 +259,42 @@ class BaseScraper:
         message = str(exc)
         return "HTTP Error 403" in message or "HTTP Error 429" in message
 
+    @staticmethod
+    def _proxy_pool(url: str) -> list[str | None]:
+        """Return proxy endpoints to try, starting with one that worked before.
+
+        Metadata and download are separate yt-dlp runs, and YouTube blocks some
+        IP/video pairs individually. The cached endpoint is therefore reused for
+        both requests, with the rest of the pool as fallbacks.
+        """
+        proxies = _configured_proxies()
+        if not proxies:
+            return [None]
+        cached = _proxy_cache.get(url)
+        if cached and time.monotonic() - cached[1] < _PROXY_CACHE_TTL:
+            return [cached[0], *(p for p in proxies if p != cached[0])]
+        return list(proxies)
+
+    @staticmethod
+    def _restore_cookies(opts: dict[str, Any], source_file: str | None, domain: str | None) -> None:
+        """Rebuild the writable cookie jar from the mounted source.
+
+        yt-dlp rewrites the cookiefile on exit and may drop the auth cookies,
+        so every retry has to start from the original content again.
+        """
+        if not opts.get("cookiefile") or not source_file:
+            return
+        content = _read_cookies_file(source_file)
+        if content is None:
+            return
+        try:
+            Path(opts["cookiefile"]).write_text(
+                _normalize_cookies_content(content, domain or "youtube.com"),
+                encoding="utf-8",
+            )
+        except Exception:  # noqa: BLE001 - best effort
+            pass
+
     async def _refresh_cookies(self, url: str | None = None, force: bool = False) -> bool:
         """Rebuild the normalized cookie file and try a Playwright refresh.
 
@@ -315,33 +355,29 @@ class BaseScraper:
         if fmt is not None:
             opts["format"] = fmt
 
-        proxy = _configured_proxy()
-        # A rotating proxy gives every request a different exit IP, so a single
-        # extraction is a lottery: the page, player API and PO-token script can
-        # land on different addresses. Retrying simply draws another IP.
-        delays = (0.0, 0.5, 1.0, 1.5, 2.5, 4.0, 6.0) if proxy else (0.0, *_RETRY_DELAYS)
+        pool = self._proxy_pool(url)
+        if len(pool) > 1:
+            delays = [0.0, *([0.4] * (len(pool) - 1))]
+        else:
+            delays = [0.0, *_RETRY_DELAYS]
+            pool = pool * len(delays)
 
         last_error: Exception | None = None
-        for index, delay in enumerate(delays):
+        for index, (proxy, delay) in enumerate(zip(pool, delays)):
             if delay:
                 await asyncio.sleep(delay)
-            # yt-dlp writes the cookiejar back to the file on exit; restore the
-            # pristine source before each retry so it never degrades.
-            if proxy and index and opts.get("cookiefile") and self._cookies_file:
-                content = _read_cookies_file(self._cookies_file)
-                if content is not None:
-                    try:
-                        Path(opts["cookiefile"]).write_text(
-                            _normalize_cookies_content(
-                                content, self._auto_cookies_domain or "youtube.com"
-                            ),
-                            encoding="utf-8",
-                        )
-                    except Exception:  # noqa: BLE001 - best effort
-                        pass
+            if proxy:
+                opts["proxy"] = proxy
+            else:
+                opts.pop("proxy", None)
+            if index:
+                self._restore_cookies(opts, self._cookies_file, self._auto_cookies_domain)
             try:
                 with yt_dlp.YoutubeDL(opts) as ydl:
-                    return await asyncio.to_thread(ydl.extract_info, url, download=False)
+                    info = await asyncio.to_thread(ydl.extract_info, url, download=False)
+                if proxy:
+                    _proxy_cache[url] = (proxy, time.monotonic())
+                return info
             except Exception as exc:  # noqa: BLE001 - classified below
                 last_error = exc
                 logger.warning("yt-dlp extraction failed for %s: %s", url, exc)
@@ -349,15 +385,15 @@ class BaseScraper:
                 if _is_bot_detection_error(exc):
                     if proxy:
                         logger.warning(
-                            "Bot-check from a proxy exit IP; retrying with another "
-                            "one (attempt %d/%d)", index + 1, len(delays)
+                            "Bot-check on proxy #%d/%d; trying the next endpoint",
+                            index + 1, len(pool)
                         )
                         continue
                     if not self._cookies_refreshed:
                         logger.warning(
                             "YouTube bot-check for %s (IP-level: cookies and player "
-                            "clients do not bypass it); set YOUTUBE_PROXY to use "
-                            "another IP", url
+                            "clients do not bypass it); set YOUTUBE_PROXY to a pool "
+                            "of IPs", url
                         )
                         if await self._refresh_cookies(url, force=True):
                             # The normalized cookiefile is updated in place and
@@ -423,19 +459,40 @@ class BaseScraper:
             opts["merge_output_format"] = merge_output_format
 
         loop = asyncio.get_running_loop()
+        last_error: Exception | None = None
 
-        def _download() -> Path:
-            with yt_dlp.YoutubeDL(opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-                try:
-                    candidate = Path(ydl.prepare_filename(info))
-                    if candidate.exists():
-                        return candidate
-                except Exception:  # noqa: BLE001 - fall back to the newest file
-                    pass
-                files = [p for p in Path(out_dir).iterdir() if p.is_file()]
-                if not files:
-                    raise DownloadError(f"yt-dlp did not produce a file for {url}")
-                return max(files, key=lambda p: p.stat().st_mtime)
+        for index, proxy in enumerate(self._proxy_pool(url)):
+            if proxy:
+                opts["proxy"] = proxy
+            else:
+                opts.pop("proxy", None)
+            if index:
+                self._restore_cookies(opts, self._cookies_file, self._auto_cookies_domain)
 
-        return await loop.run_in_executor(None, _download)
+            def _download() -> Path:
+                with yt_dlp.YoutubeDL(opts) as ydl:
+                    info = ydl.extract_info(url, download=True)
+                    try:
+                        candidate = Path(ydl.prepare_filename(info))
+                        if candidate.exists():
+                            return candidate
+                    except Exception:  # noqa: BLE001 - fall back to the newest file
+                        pass
+                    files = [p for p in Path(out_dir).iterdir() if p.is_file()]
+                    if not files:
+                        raise DownloadError(f"yt-dlp did not produce a file for {url}")
+                    return max(files, key=lambda p: p.stat().st_mtime)
+
+            try:
+                path = await loop.run_in_executor(None, _download)
+                if proxy:
+                    _proxy_cache[url] = (proxy, time.monotonic())
+                return path
+            except Exception as exc:  # noqa: BLE001 - try another exit IP
+                last_error = exc
+                logger.warning("yt-dlp download via %s failed for %s: %s", proxy, url, exc)
+                if _is_bot_detection_error(exc) or self._is_rate_limited(exc):
+                    continue
+                raise
+
+        raise DownloadError(f"Unable to download {url}: {last_error}")

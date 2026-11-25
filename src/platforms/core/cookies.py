@@ -51,7 +51,8 @@ async def extract_cookies(
     Returns:
         Tuple of (Netscape format cookie string, bool indicating if cookies were found)
     """
-    proxy = os.getenv("YOUTUBE_PROXY") or os.getenv("YTDLP_PROXY")
+    raw_proxy = os.getenv("YOUTUBE_PROXY") or os.getenv("YTDLP_PROXY") or ""
+    proxy = next((p.strip() for p in raw_proxy.split(",") if p.strip()), None)
     async with async_playwright() as p:
         # Launch with stealth options to avoid detection. The same outbound IP
         # must be used here and by yt-dlp, otherwise refreshed cookies are tied
